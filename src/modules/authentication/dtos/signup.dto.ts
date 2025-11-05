@@ -78,13 +78,6 @@ export class CreateAccountDto {
   @MinLength(Number(PWD_LENGTH.MIN))
   @MaxLength(Number(PWD_LENGTH.MAX))
   password: string;
-
-  @ApiProperty({ required: false })
-  @ValidateIf((o) => o.referrer && o.referrer.trim().length > 0)
-  @IsOptional()
-  @IsString()
-  @Length(4, 21)
-  referrer?: string;
 }
 
 export class VerifyOtpDto {

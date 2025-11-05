@@ -9,7 +9,13 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CourseProvider } from './course.provider';
-import { CreateCourseDto, ListCoursesDto, UpdateCourseDto } from './dtos';
+import {
+  CreateCourseDto,
+  LessonNavDto,
+  ListCoursesDto,
+  MarkLessonCompleteDto,
+  UpdateCourseDto,
+} from './dtos';
 import { type UserDocument } from '../user/schemas';
 import { Auth } from 'src/decorators';
 
@@ -19,7 +25,7 @@ import { Auth } from 'src/decorators';
 export class CourseController {
   constructor(private readonly courseProvider: CourseProvider) {}
 
-  @Post()
+  @Post('generate-outline')
   createCourse(@Auth() user: UserDocument, @Body() body: CreateCourseDto) {
     return this.courseProvider.createCourse({ user, body });
   }
@@ -29,38 +35,35 @@ export class CourseController {
     return this.courseProvider.updateCourse({ user, body });
   }
 
-  @Get(':courseId')
-  getCourse(@Auth() user: UserDocument, @Param('courseId') courseId: string) {
-    return this.courseProvider.getCourse({ user, courseId });
-  }
-
-  @Get(':courseId/sections')
-  getCourseSections(
+  @Get(':courseId/modules')
+  getCourseModules(
     @Auth() user: UserDocument,
     @Param('courseId') courseId: string,
   ) {
-    return this.courseProvider.getCourseSections({ user, courseId });
+    return this.courseProvider.getCourseModules({ user, courseId });
   }
 
-  @Get(':courseId/sections/:sectionId')
-  getCourseSection(
+  @Get(':courseId/modules/:moduleNumber')
+  getCourseModule(
     @Auth() user: UserDocument,
     @Param('courseId') courseId: string,
-    @Param('sectionId') sectionId: string,
+    @Param('moduleNumber') moduleNumber: number,
   ) {
-    return this.courseProvider.getCourseSection({ user, courseId, sectionId });
-  }
-
-  @Post(':courseId/sections/:sectionId/complete')
-  markSectionCompleted(
-    @Auth() user: UserDocument,
-    @Param('courseId') courseId: string,
-    @Param('sectionId') sectionId: string,
-  ) {
-    return this.courseProvider.markSectionCompleted({
+    return this.courseProvider.getCourseModule({
       user,
       courseId,
-      sectionId,
+      moduleNumber,
+    });
+  }
+
+  @Post('lesson/complete')
+  markModuleCompleted(
+    @Auth() user: UserDocument,
+    @Body() body: MarkLessonCompleteDto,
+  ) {
+    return this.courseProvider.markLessonCompleted({
+      user,
+      body,
     });
   }
 
@@ -79,26 +82,21 @@ export class CourseController {
     return this.courseProvider.getActiveCourse({ user });
   }
 
-  @Get('categories')
-  getCourseCategories() {
-    return this.courseProvider.getCourseCategories();
-  }
-
   @Get('explore')
-  exploreCourses(@Auth() user: UserDocument) {
-    return this.courseProvider.exploreCourses({ user });
+  exploreCourses(@Auth() user: UserDocument, @Query() query: ListCoursesDto) {
+    return this.courseProvider.exploreCourses({ user, query });
   }
 
   @Get(':courseId/next-section')
   getNextSection(
     @Auth() user: UserDocument,
     @Param('courseId') courseId: string,
-    @Query('currentSectionId') currentSectionId: string,
+    @Query() currentSection: LessonNavDto,
   ) {
     return this.courseProvider.getNextSection({
       user,
       courseId,
-      currentSectionId,
+      currentSection,
     });
   }
 
@@ -106,12 +104,12 @@ export class CourseController {
   getPreviousSection(
     @Auth() user: UserDocument,
     @Param('courseId') courseId: string,
-    @Query('currentSectionId') currentSectionId: string,
+    @Query() currentSection: LessonNavDto,
   ) {
     return this.courseProvider.getPreviousSection({
       user,
       courseId,
-      currentSectionId,
+      currentSection,
     });
   }
 
@@ -133,5 +131,31 @@ export class CourseController {
   @Get('learning/summary')
   getLearningSummary(@Auth() user: UserDocument) {
     return this.courseProvider.getLearningSummary({ user });
+  }
+  @Post(':courseId/toggle-favourite')
+  toggleFavourite(
+    @Auth() user: UserDocument,
+    @Param('courseId') courseId: string,
+  ) {
+    return this.courseProvider.toggleFavourite({ user, courseId });
+  }
+
+  @Post(':courseId/toggle-bookmark')
+  toggleBookmark(
+    @Auth() user: UserDocument,
+    @Param('courseId') courseId: string,
+  ) {
+    return this.courseProvider.toggleBookmark({ user, courseId });
+  }
+  @Get(':courseId')
+  getCourse(@Auth() user: UserDocument, @Param('courseId') courseId: string) {
+    return this.courseProvider.getCourse({ user, courseId });
+  }
+  @Get(':courseId/overview')
+  getCourseOverview(
+    @Auth() user: UserDocument,
+    @Param('courseId') courseId: string,
+  ) {
+    return this.courseProvider.getCourseOverview({ user, courseId });
   }
 }

@@ -11,16 +11,15 @@ import { BaseListDto } from 'src/modules/shared/dtos';
 import {
   CourseStatus,
   Language,
-  LearningStyle,
+  TeachingStyle,
   Pace,
-  SkillLevel,
+  ExperienceLevel,
 } from '../enums';
 
 export class ListCoursesDto extends BaseListDto {
   @ApiPropertyOptional({
     description: 'Filter by Course Status',
     enum: CourseStatus,
-    example: CourseStatus.ACTIVE,
   })
   @IsOptional()
   @IsEnum(CourseStatus)
@@ -29,50 +28,42 @@ export class ListCoursesDto extends BaseListDto {
   @ApiPropertyOptional({
     description: 'Filter by Language',
     enum: Language,
-    example: Language.EN,
   })
   @IsOptional()
   @IsEnum(Language)
-  preferred_language?: Language;
+  language?: Language;
 
   @ApiPropertyOptional({
     description: 'Filter by Skill Level',
-    enum: SkillLevel,
-    example: SkillLevel.BEGINNER,
+    enum: ExperienceLevel,
   })
   @IsOptional()
-  @IsEnum(SkillLevel)
-  skill_level?: SkillLevel;
+  @IsEnum(ExperienceLevel)
+  experience_level?: ExperienceLevel;
 
   @ApiPropertyOptional({
     description: 'Filter by Learning Style',
-    enum: LearningStyle,
-    example: LearningStyle.CASUAL,
+    enum: TeachingStyle,
   })
   @IsOptional()
-  @IsEnum(LearningStyle)
-  learning_style?: LearningStyle;
+  @IsEnum(TeachingStyle)
+  teaching_style?: TeachingStyle;
 
   @ApiPropertyOptional({
     description: 'Filter by Pace',
     enum: Pace,
-    example: Pace.MEDIUM,
   })
   @IsOptional()
   @IsEnum(Pace)
   pace?: Pace;
 
-  @ApiPropertyOptional({
-    description: 'Filter by User ID',
-    example: '66f59ac2234fa62b109d1b8e',
-  })
+  @ApiPropertyOptional({})
   @IsOptional()
   @IsMongoId()
   user_id?: string;
 
   @ApiPropertyOptional({
     description: 'Return only favourite courses',
-    example: true,
   })
   @IsOptional()
   @IsBoolean()
@@ -83,7 +74,6 @@ export class ListCoursesDto extends BaseListDto {
 
   @ApiPropertyOptional({
     description: 'Return only bookmarked courses',
-    example: false,
   })
   @IsOptional()
   @IsBoolean()

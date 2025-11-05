@@ -1,24 +1,26 @@
 export enum UserTypes {
-  CUSTOMER = 'CUSTOMER',
-  STAFF = 'STAFF',
+  CUSTOMER = 'customer',
+  STAFF = 'staff',
 }
+
 export enum UserStatus {
-  NEW = 'NEW',
-  VERIFIED = 'VERIFIED',
-  IN_ACTIVE = 'IN_ACTIVE',
-  BANNED = 'BANNED',
-  DELETED = 'DELETED',
+  NEW = 'new',
+  VERIFIED = 'verified',
+  INACTIVE = 'inactive',
+  BANNED = 'banned',
+  DELETED = 'deleted',
 }
+
 export enum UserRoles {
-  MASTER = 'MASTER',
-  ADMIN = 'ADMIN',
-  SUPPORT = 'SUPPORT',
-  SALES = 'SALES',
-  FINANCE = 'FINANCE',
-  REGULAR = 'REGULAR',
+  MASTER = 'master',
+  ADMIN = 'admin',
+  SUPPORT = 'support',
+  SALES = 'sales',
+  FINANCE = 'finance',
+  REGULAR = 'regular',
 }
 
 export enum UserPlans {
-  FREE = 'FREE',
-  PRO = 'PRO',
+  FREE = 'free',
+  PRO = 'pro',
 }

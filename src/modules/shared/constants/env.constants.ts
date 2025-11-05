@@ -10,6 +10,7 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string(),
   MAILGUN_API_KEY: z.string(),
   MAILGUN_DOMAIN: z.string(),
+  AI_WEB_URL: z.string(),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
