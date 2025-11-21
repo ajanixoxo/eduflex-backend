@@ -1,7 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CourseService } from './course.service';
 import { UserDocument } from '../user/schemas';
 import {
+  ChangeCourseAIAvatarDto,
+  ChangeCourseAIVoiceDto,
   CreateCourseDto,
   LessonNavDto,
   ListCoursesDto,
@@ -24,6 +30,8 @@ import { formatToGmtPlus1 } from 'src/helpers';
 import { CourseStatus } from './enums';
 import { UserService } from '../user/user.service';
 import axios, { AxiosInstance } from 'axios';
+import { MediaService } from '../media/media.service';
+import { AIMediaOwner } from '../media/enums';
 
 @Injectable()
 export class CourseProvider {
@@ -31,6 +39,7 @@ export class CourseProvider {
   constructor(
     private readonly courseService: CourseService,
     private readonly userService: UserService,
+    private readonly mediaService: MediaService,
   ) {
     this.client = axios.create({});
   }
@@ -42,6 +51,32 @@ export class CourseProvider {
     user: UserDocument;
     body: CreateCourseDto;
   }): Promise<IApiResponseDto> {
+    const aiVoice = await this.mediaService.getAIVoice({ _id: body.ai_voice });
+    const aiAvatar = await this.mediaService.getAIAvatar({
+      _id: body.ai_avatar,
+    });
+
+    if (!aiVoice) {
+      throw new NotFoundException('AI Voice not found');
+    }
+    if (!aiAvatar) {
+      throw new NotFoundException('AI Avatar not found');
+    }
+
+    const isVoiceOwnerValid =
+      aiVoice.owner === AIMediaOwner.SYSTEM ||
+      aiVoice.user._id.equals(user._id);
+    const isAvatarOwnerValid =
+      aiAvatar.owner === AIMediaOwner.SYSTEM ||
+      aiAvatar.user._id.equals(user._id);
+
+    if (!isVoiceOwnerValid) {
+      throw new BadRequestException('You cannot use this AI Voice');
+    }
+    if (!isAvatarOwnerValid) {
+      throw new BadRequestException('You cannot use this AI Avatar');
+    }
+
     const generated = await this.courseService.generateCourseOutline({
       payload: body,
     });
@@ -72,6 +107,8 @@ export class CourseProvider {
           resources: l.resources || [],
         })),
       })),
+      ai_voice: aiVoice._id,
+      ai_avatar: aiAvatar._id,
     };
 
     const createdCourse =
@@ -80,6 +117,68 @@ export class CourseProvider {
     return {
       message: 'Course created successfully',
       data: createdCourse,
+    };
+  }
+  async changeCourseAIAvatar({
+    user,
+    body,
+  }: {
+    user: UserDocument;
+    body: ChangeCourseAIAvatarDto;
+  }): Promise<IApiResponseDto> {
+    const course = await this.courseService.getCourse({
+      _id: body.course_id,
+      user: user._id,
+    });
+    if (!course) throw new NotFoundException('Course not found');
+
+    const aiAvatar = await this.mediaService.getAIAvatar({
+      _id: body.ai_avatar_id,
+    });
+    if (!aiAvatar) throw new NotFoundException('AI Avatar not found');
+
+    const isOwnerValid =
+      aiAvatar.owner === AIMediaOwner.SYSTEM ||
+      aiAvatar.user._id.equals(user._id);
+    if (!isOwnerValid)
+      throw new BadRequestException('You cannot use this AI Avatar');
+    course.ai_avatar = aiAvatar;
+    await course.save();
+
+    return {
+      message: 'Course AI Avatar updated successfully',
+      data: course,
+    };
+  }
+  async changeCourseAIVoice({
+    user,
+    body,
+  }: {
+    user: UserDocument;
+    body: ChangeCourseAIVoiceDto;
+  }): Promise<IApiResponseDto> {
+    const course = await this.courseService.getCourse({
+      _id: body.course_id,
+      user: user._id,
+    });
+    if (!course) throw new NotFoundException('Course not found');
+
+    const aiVoice = await this.mediaService.getAIVoice({
+      _id: body.ai_voice_id,
+    });
+    if (!aiVoice) throw new NotFoundException('AI Voice not found');
+
+    const isOwnerValid =
+      aiVoice.owner === AIMediaOwner.SYSTEM ||
+      aiVoice.user._id.equals(user._id);
+    if (!isOwnerValid)
+      throw new BadRequestException('You cannot use this AI Voice');
+    course.ai_voice = aiVoice;
+    await course.save();
+
+    return {
+      message: 'Course AI Voice updated successfully',
+      data: course,
     };
   }
 

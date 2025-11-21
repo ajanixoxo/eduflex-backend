@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsMongoId,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -117,6 +118,22 @@ export class CreateCourseDto {
   @IsOptional()
   @IsEnum(Pace)
   pace?: Pace;
+
+  @ApiProperty({
+    description: 'AI Voice ID for the course',
+    example: '67473c52d9c3d52f6e7e26ac',
+  })
+  @IsString()
+  @IsMongoId()
+  ai_voice: string;
+
+  @ApiProperty({
+    description: 'AI Avatar ID for the course',
+    example: '67473c52d9c3d52f6e7e26ad',
+  })
+  @IsString()
+  @IsMongoId()
+  ai_avatar: string;
 }
 
 export class UpdateCourseDto extends PartialType(CreateCourseDto) {

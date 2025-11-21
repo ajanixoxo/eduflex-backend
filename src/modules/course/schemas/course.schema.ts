@@ -14,6 +14,10 @@ import {
   LessonStatus,
 } from '../enums';
 import { type UserDocument } from 'src/modules/user/schemas';
+import {
+  type AIAvatarDocument,
+  type AIVoiceDocument,
+} from 'src/modules/media/schemas';
 
 @Schema({
   _id: false,
@@ -165,6 +169,20 @@ export class Course extends TimestampMixin {
 
   @Prop({ default: false })
   is_bookmarked: boolean;
+
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'AIVoice',
+    required: false,
+  })
+  ai_voice?: AIVoiceDocument;
+
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: 'AIAvatar',
+    required: false,
+  })
+  ai_avatar?: AIAvatarDocument;
 }
 
 export const CourseSchema = SchemaFactory.createForClass(Course);

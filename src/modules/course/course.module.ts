@@ -5,10 +5,12 @@ import { CourseService } from './course.service';
 import { CourseController } from './course.controller';
 import { CourseProvider } from './course.provider';
 import { UsersModule } from '../user/user.module';
+import { MediaModule } from '../media/media.module';
 
 @Module({
   imports: [
     forwardRef(() => UsersModule),
+    forwardRef(() => MediaModule),
     MongooseModule.forFeature([{ name: Course.name, schema: CourseSchema }]),
   ],
   controllers: [CourseController],

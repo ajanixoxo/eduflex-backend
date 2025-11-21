@@ -83,7 +83,10 @@ export class MediaService {
   async getAIAvatar(
     filter: FilterQuery<AIAvatarDocument>,
   ): Promise<AIAvatarDocument | null> {
-    return this.aiAvatarModel.findOne(filter).populate('media').exec();
+    return this.aiAvatarModel
+      .findOne(filter)
+      .populate(['media', 'user'])
+      .exec();
   }
   async listAIAvatars(
     filter: FilterQuery<MediaDocument>,
@@ -122,7 +125,7 @@ export class MediaService {
   async getAIVoice(
     filter: FilterQuery<AIVoiceDocument>,
   ): Promise<AIVoiceDocument | null> {
-    return this.aiVoiceModel.findOne(filter).populate('media').exec();
+    return this.aiVoiceModel.findOne(filter).populate(['media', 'user']).exec();
   }
   async listAIVoices(
     filter: FilterQuery<MediaDocument>,
@@ -134,7 +137,7 @@ export class MediaService {
       filter,
       page,
       per_page,
-      ['media'],
+      ['media', 'user'],
     );
   }
   async updateAIVoice(
@@ -143,7 +146,7 @@ export class MediaService {
   ): Promise<AIVoiceDocument | null> {
     return this.aiVoiceModel
       .findOneAndUpdate(filter, update, { new: true })
-      .populate('media')
+      .populate('media', 'user')
       .exec();
   }
   async deleteAIVoice(filter: FilterQuery<AIVoiceDocument>): Promise<boolean> {

@@ -70,9 +70,20 @@ export class CourseService {
   async getCourse(
     filter: FilterQuery<CourseDocument>,
   ): Promise<CourseDocument | null> {
-    return this.courseModel
-      .findOne(filter)
-      .populate('user', 'firstname lastname email');
+    return this.courseModel.findOne(filter).populate([
+      {
+        path: 'user',
+        select: 'firstname lastname email',
+      },
+      {
+        path: 'ai_avatar',
+        populate: 'media',
+      },
+      {
+        path: 'ai_voice',
+        populate: 'media',
+      },
+    ]);
   }
 
   async getAllCourses(

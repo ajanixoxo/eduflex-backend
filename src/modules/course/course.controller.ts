@@ -10,6 +10,8 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CourseProvider } from './course.provider';
 import {
+  ChangeCourseAIAvatarDto,
+  ChangeCourseAIVoiceDto,
   CreateCourseDto,
   LessonNavDto,
   ListCoursesDto,
@@ -33,6 +35,20 @@ export class CourseController {
   @Patch(':courseId')
   updateCourse(@Auth() user: UserDocument, @Body() body: UpdateCourseDto) {
     return this.courseProvider.updateCourse({ user, body });
+  }
+  @Patch('update-ai-avatar')
+  updateCourseAIAvatar(
+    @Auth() user: UserDocument,
+    @Body() body: ChangeCourseAIAvatarDto,
+  ) {
+    return this.courseProvider.changeCourseAIAvatar({ user, body });
+  }
+  @Patch('update-ai-voice')
+  updateCourseAIVoice(
+    @Auth() user: UserDocument,
+    @Body() body: ChangeCourseAIVoiceDto,
+  ) {
+    return this.courseProvider.changeCourseAIVoice({ user, body });
   }
 
   @Get(':courseId/modules')
