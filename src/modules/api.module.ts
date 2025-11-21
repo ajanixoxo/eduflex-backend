@@ -5,9 +5,10 @@ import { AuthModule } from './authentication/auth.module';
 import { UsersModule } from './user/user.module';
 import { SystemModule } from './system/system.module';
 import { CourseModule } from './course/course.module';
+import { MediaModule } from './media/media.module';
 
 @Module({
-  imports: [AuthModule, UsersModule, CourseModule, SystemModule],
+  imports: [AuthModule, UsersModule, CourseModule, MediaModule, SystemModule],
   providers: [ApiService],
   controllers: [ApiController],
 })

@@ -1,0 +1,445 @@
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
+import { MediaService } from './media.service';
+import { v2 as cloudinary } from 'cloudinary';
+import { Env } from '../shared/constants';
+import { IApiResponseDto } from '../shared/types';
+import {
+  CreateAiAvatarDto,
+  CreateAiVoiceDto,
+  ListAiAvatarsDto,
+  ListAiVoicesDto,
+  UpdateAiAvatarDto,
+  UpdateAiVoiceDto,
+  UploadDto,
+} from './dtos';
+import { UserDocument } from '../user/schemas';
+import { UserTypes } from '../user/enums';
+import { AIMediaOwner, MediaType } from './enums';
+@Injectable()
+export class MediaProvider {
+  constructor(private readonly mediaService: MediaService) {
+    cloudinary.config({
+      api_key: Env.CLOUDINARY_API_KEY,
+      cloud_name: Env.CLOUDINARY_CLOUD_NAME,
+      api_secret: Env.CLOUDINARY_API_SECRET,
+    });
+  }
+  async uploadMedia(
+    user: UserDocument,
+    file: Express.Multer.File,
+    data: UploadDto,
+  ): Promise<IApiResponseDto> {
+    try {
+      console.log('Uploaded file MIME type:', file.mimetype);
+
+      const allowedImageTypes = [
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+        'image/gif',
+      ];
+      const allowedAudioTypes = [
+        'audio/mpeg',
+        'audio/mp3',
+        'audio/wav',
+        'audio/ogg',
+        'audio/webm',
+      ];
+      if (
+        data.media_type === MediaType.AI_AVATAR ||
+        data.media_type === MediaType.PROFILE_PICTURE
+      ) {
+        if (
+          !file.mimetype.startsWith('image/') ||
+          !allowedImageTypes.includes(file.mimetype)
+        ) {
+          throw new BadRequestException('Unsupported image format');
+        }
+      }
+
+      if (data.media_type === MediaType.AI_VOICE) {
+        if (
+          !file.mimetype.startsWith('audio/') ||
+          !allowedAudioTypes.includes(file.mimetype)
+        ) {
+          throw new BadRequestException('Unsupported audio format');
+        }
+      }
+
+      let originalName = file.originalname;
+      if (originalName.endsWith('.mpa'))
+        originalName = originalName.replace(/\.mpa$/i, '.mp3');
+
+      const folders: Record<string, string> = {
+        [MediaType.AI_AVATAR]: `eduflexai/${user._id}/ai_avatars`,
+        [MediaType.AI_VOICE]: `eduflexai/${user._id}/ai_voices`,
+      };
+      const folder =
+        folders[data.media_type] ?? `eduflexai/${user._id}/uploads`;
+
+      const base64 = file.buffer.toString('base64');
+      const res = await cloudinary.uploader.upload(
+        `data:${file.mimetype};base64,${base64}`,
+        {
+          folder,
+          resource_type:
+            data.media_type === MediaType.AI_VOICE ? 'video' : 'auto',
+        },
+      );
+      const media = await this.mediaService.createMedia({
+        user,
+        location: res.url,
+        url: res.secure_url,
+        mimetype: file.mimetype,
+        media_type: data.media_type,
+        file_name: originalName,
+        file_size: file.size,
+      });
+
+      return {
+        message: 'File uploaded successfully',
+        data: media,
+      };
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+
+      throw new InternalServerErrorException(
+        error?.message ?? 'Failed to upload media',
+      );
+    }
+  }
+
+  async uploadAiAvatar({
+    user,
+    body,
+  }: {
+    user: UserDocument;
+    body: CreateAiAvatarDto;
+  }): Promise<IApiResponseDto> {
+    try {
+      const media = await this.mediaService.getMedia({
+        _id: body.media_id,
+        user: user._id,
+      });
+
+      if (!media) {
+        throw new NotFoundException('Uploaded media not found');
+      }
+      if (!media.mimetype?.startsWith('image/')) {
+        throw new BadRequestException(
+          'Please select an image file for AI Avatar generation',
+        );
+      }
+
+      const aiAvatar = await this.mediaService.createAIAvatar({
+        user,
+        media,
+        name: body.name ?? media.file_name ?? 'AI Avatar',
+        description: body.description ?? 'Uploaded Avatar.',
+        owner:
+          user.account_type === UserTypes.CUSTOMER
+            ? AIMediaOwner.USER
+            : AIMediaOwner.SYSTEM,
+      });
+
+      return {
+        message: 'AI Avatar uploaded successfully',
+        data: aiAvatar,
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      throw new InternalServerErrorException(
+        error?.message ?? 'Failed to upload AI avatar',
+      );
+    }
+  }
+  async updateAiAvatar({
+    user,
+    avatarId,
+    body,
+  }: {
+    user: UserDocument;
+    avatarId: string;
+    body: UpdateAiAvatarDto;
+  }): Promise<IApiResponseDto> {
+    try {
+      const aiAvatar = await this.mediaService.getAIAvatar({
+        _id: avatarId,
+        user: user._id,
+      });
+
+      if (!aiAvatar) {
+        throw new NotFoundException('AI Avatar not found');
+      }
+
+      if (body.name) aiAvatar.name = body.name;
+      if (body.description) aiAvatar.description = body.description;
+      if (body.media_id) {
+        const media = await this.mediaService.getMedia({
+          _id: body.media_id,
+          user: user._id,
+        });
+
+        if (!media) {
+          throw new NotFoundException('Provided media not found');
+        }
+
+        if (!media.mimetype?.startsWith('image/')) {
+          throw new BadRequestException(
+            'Provided media must be an image file for AI Avatar',
+          );
+        }
+
+        aiAvatar.media = media;
+
+        if (!body.name) aiAvatar.name = media.file_name ?? aiAvatar.name;
+      }
+
+      const updated = await aiAvatar.save();
+
+      return {
+        message: 'AI Avatar updated successfully',
+        data: updated,
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        error?.message ?? 'Failed to update AI Avatar',
+      );
+    }
+  }
+
+  async deleteAiAvatar({
+    user,
+    avatarId,
+  }: {
+    user: UserDocument;
+    avatarId: string;
+  }): Promise<IApiResponseDto> {
+    try {
+      const deleted = await this.mediaService.aiAvatarModel.findOneAndDelete({
+        _id: avatarId,
+        user: user._id,
+      });
+
+      if (!deleted) {
+        throw new NotFoundException('AI Avatar not found');
+      }
+
+      return {
+        message: 'AI Avatar deleted successfully',
+        data: deleted,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      throw new InternalServerErrorException(
+        error?.message ?? 'Failed to delete AI Avatar',
+      );
+    }
+  }
+  async getSystemAiAvatars(query: ListAiAvatarsDto): Promise<IApiResponseDto> {
+    const filter = { owner: AIMediaOwner.SYSTEM };
+    const data = await this.mediaService.listAIAvatars(filter, query);
+
+    return {
+      message: 'System AI Avatars retrieved successfully',
+      data,
+    };
+  }
+  async getMyAiAvatars({
+    user,
+    query,
+  }: {
+    user: UserDocument;
+    query: ListAiAvatarsDto;
+  }): Promise<IApiResponseDto> {
+    const filter = { user: user._id };
+    const data = await this.mediaService.listAIAvatars(filter, query);
+
+    return {
+      message: 'User AI Avatars retrieved successfully',
+      data,
+    };
+  }
+  async uploadAiVoice({
+    user,
+    body,
+  }: {
+    user: UserDocument;
+    body: CreateAiVoiceDto;
+  }): Promise<IApiResponseDto> {
+    try {
+      const media = await this.mediaService.getMedia({
+        _id: body.media_id,
+        user: user._id,
+      });
+
+      if (!media) {
+        throw new NotFoundException('Uploaded media not found');
+      }
+
+      if (!media.mimetype?.startsWith('audio/')) {
+        throw new BadRequestException(
+          'Please select an audio file for AI Voice generation',
+        );
+      }
+
+      const aiVoice = await this.mediaService.createAIVoice({
+        user,
+        media,
+        name: body.name ?? media.file_name ?? 'AI Voice',
+        description: body.description ?? 'Uploaded AI Voice.',
+        accent: body.accent ?? 'OTHER',
+        owner:
+          user.account_type === UserTypes.CUSTOMER
+            ? AIMediaOwner.USER
+            : AIMediaOwner.SYSTEM,
+      });
+
+      return {
+        message: 'AI Voice uploaded successfully',
+        data: aiVoice,
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+
+      throw new InternalServerErrorException(
+        error?.message ?? 'Failed to upload AI voice',
+      );
+    }
+  }
+  async updateAiVoice({
+    user,
+    voiceId,
+    body,
+  }: {
+    user: UserDocument;
+    voiceId: string;
+    body: UpdateAiVoiceDto;
+  }): Promise<IApiResponseDto> {
+    try {
+      const aiVoice = await this.mediaService.getAIVoice({
+        _id: voiceId,
+        user: user._id,
+      });
+
+      if (!aiVoice) {
+        throw new NotFoundException('AI Voice not found');
+      }
+
+      if (body.name) aiVoice.name = body.name;
+      if (body.description) aiVoice.description = body.description;
+      if (body.accent) aiVoice.accent = body.accent;
+      if (body.media_id) {
+        const media = await this.mediaService.getMedia({
+          _id: body.media_id,
+          user: user._id,
+        });
+
+        if (!media) {
+          throw new NotFoundException('Provided media not found');
+        }
+
+        if (!media.mimetype?.startsWith('audio/')) {
+          throw new BadRequestException(
+            'Provided media must be an audio file for AI Voice',
+          );
+        }
+
+        aiVoice.media = media;
+        if (!body.name) aiVoice.name = media.file_name ?? aiVoice.name;
+      }
+
+      const updated = await aiVoice.save();
+
+      return {
+        message: 'AI Voice updated successfully',
+        data: updated,
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      )
+        throw error;
+
+      throw new InternalServerErrorException(
+        error?.message ?? 'Failed to update AI Voice',
+      );
+    }
+  }
+  async deleteAiVoice({
+    user,
+    voiceId,
+  }: {
+    user: UserDocument;
+    voiceId: string;
+  }): Promise<IApiResponseDto> {
+    try {
+      const deleted = await this.mediaService.aiVoiceModel.findOneAndDelete({
+        _id: voiceId,
+        user: user._id,
+      });
+
+      if (!deleted) {
+        throw new NotFoundException('AI Voice not found');
+      }
+
+      return {
+        message: 'AI Voice deleted successfully',
+        data: deleted,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      throw new InternalServerErrorException(
+        error?.message ?? 'Failed to delete AI Voice',
+      );
+    }
+  }
+  async getSystemAiVoices(query: ListAiVoicesDto): Promise<IApiResponseDto> {
+    const filter = { owner: AIMediaOwner.SYSTEM };
+    const data = await this.mediaService.listAIVoices(filter, query);
+
+    return {
+      message: 'System AI Voices retrieved successfully',
+      data,
+    };
+  }
+  async getMyAiVoices({
+    user,
+    query,
+  }: {
+    user: UserDocument;
+    query: ListAiVoicesDto;
+  }): Promise<IApiResponseDto> {
+    const filter = { user: user._id };
+    const data = await this.mediaService.listAIVoices(filter, query);
+
+    return {
+      message: 'User AI Voices retrieved successfully',
+      data,
+    };
+  }
+}

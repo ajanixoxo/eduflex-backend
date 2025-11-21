@@ -1,7 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { BaseDocument, TimestampMixin } from 'src/modules/shared/types';
 import { UserPlans, UserRoles, UserStatus, UserTypes } from '../enums';
-
+import { Media, type MediaDocument } from 'src/modules/media/schemas';
+import { Schema as MongooseSchema } from 'mongoose';
 @Schema({
   timestamps: {
     createdAt: 'created_at',
@@ -54,7 +55,12 @@ export class User extends TimestampMixin {
     phone_code: number;
     iso_code: string;
   };
-
+  @Prop({
+    type: MongooseSchema.Types.ObjectId,
+    ref: Media.name,
+    required: false,
+  })
+  profile_pic: MediaDocument;
   @Prop({
     enum: Object.values(UserTypes),
     default: UserTypes.CUSTOMER,
