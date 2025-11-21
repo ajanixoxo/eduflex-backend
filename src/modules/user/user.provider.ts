@@ -10,9 +10,15 @@ import { AuthService } from '../authentication/auth.service';
 import { EmailService, UtilService } from '../shared/services';
 import { UserDocument } from './schemas';
 import { IApiResponseDto } from '../shared/types';
-import { ChangePasswordDto, ListUsersDto, UpdateUsernameDto } from './dtos';
+import {
+  ChangePasswordDto,
+  ListUsersDto,
+  UpdateUserAvatarDto,
+  UpdateUsernameDto,
+} from './dtos';
 import { formatToGmtPlus1 } from 'src/helpers';
 import { endOfDay, format, startOfDay } from 'date-fns';
+import { MediaService } from '../media/media.service';
 
 @Injectable()
 export class UserProvider {
@@ -22,6 +28,7 @@ export class UserProvider {
     private readonly authService: AuthService,
     private readonly utilService: UtilService,
     private readonly emailService: EmailService,
+    private readonly mediaService: MediaService,
   ) {}
   async getProfile(user: UserDocument): Promise<IApiResponseDto> {
     const userProfile = await this.userService.getUser({
@@ -230,6 +237,33 @@ export class UserProvider {
     return {
       message: 'Users Fetched',
       data: updatedResult,
+    };
+  }
+
+  async updateUserAvatar(
+    user: UserDocument,
+    updateProfilePicDto: UpdateUserAvatarDto,
+  ): Promise<IApiResponseDto> {
+    const media = await this.mediaService.getMedia({
+      _id: updateProfilePicDto.media_id,
+      user,
+    });
+
+    if (!media) {
+      throw new NotFoundException('Media deleted or invalid');
+    }
+
+    if (!media.mimetype?.startsWith('image/')) {
+      throw new BadRequestException('Selected media is not a valid image');
+    }
+
+    await this.userService.updateUser(
+      { _id: user._id },
+      { profile_pic: updateProfilePicDto.media_id },
+    );
+
+    return {
+      message: 'Profile Pic Updated!',
     };
   }
 }

@@ -5,9 +5,11 @@ import { AuthModule } from '../authentication/auth.module';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
 import { UserProvider } from './user.provider';
+import { MediaModule } from '../media/media.module';
 @Module({
   imports: [
     forwardRef(() => AuthModule),
+    forwardRef(() => MediaModule),
     MongooseModule.forFeature([
       {
         name: User.name,

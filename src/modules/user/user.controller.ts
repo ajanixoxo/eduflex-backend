@@ -15,7 +15,12 @@ import { type UserDocument } from './schemas';
 
 import { UserTypes } from './enums';
 import { UserProvider } from './user.provider';
-import { ChangePasswordDto, ListUsersDto, UpdateUsernameDto } from './dtos';
+import {
+  ChangePasswordDto,
+  ListUsersDto,
+  UpdateUserAvatarDto,
+  UpdateUsernameDto,
+} from './dtos';
 import { ValidateMongoIdPipe } from 'src/validations';
 
 @Controller('users')
@@ -57,6 +62,17 @@ export class UserController {
     @Body() body: ChangePasswordDto,
   ) {
     const data = await this.userProvider.changePassword(user, body);
+    return data;
+  }
+  @Put('me/update_profile_pic')
+  async updateProfilePic(
+    @Auth() user: UserDocument,
+    @Body() updateProfilePicDto: UpdateUserAvatarDto,
+  ) {
+    const data = await this.userProvider.updateUserAvatar(
+      user,
+      updateProfilePicDto,
+    );
     return data;
   }
   @Get('username/check')

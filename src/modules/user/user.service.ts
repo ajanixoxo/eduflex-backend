@@ -36,7 +36,7 @@ export class UserService {
   async getUser(
     filter: FilterQuery<UserDocument>,
   ): Promise<UserDocument | null> {
-    const user = await this.userModel.findOne(filter);
+    const user = await this.userModel.findOne(filter).populate('profile_pic');
     if (user) {
       if (!user.username) {
         await this.updateUser(
