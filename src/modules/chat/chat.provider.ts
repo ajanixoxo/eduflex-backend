@@ -40,7 +40,7 @@ export class ChatProvider {
     );
     if (!currentLesson) throw new NotFoundException('Lesson not found');
 
-    const context = `You are an intelligent AI assisting with the course: ${course.title}, Module: ${module.title}, Lesson: ${currentLesson.title}. The lesson content is as follows: ${currentLesson.title}. Please provide a helpful response based on this context. Responses should be concise and relevant to the lesson content unless the user asks otherwise`;
+    const context = `You are an intelligent AI assisting with the course: ${course.title}, Module: ${module.title}, Lesson: ${currentLesson.title}. The lesson content is as follows: ${currentLesson.title}. Please provide a helpful response based on this context. Responses should be concise and relevant to the lesson. If a user asks a question outside the scope of this lesson, politely inform them that you can only assist with questions related to the current lesson.`;
 
     const pastMessages = await this.chatService.chatModel
       .find({
