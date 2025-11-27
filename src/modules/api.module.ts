@@ -6,9 +6,17 @@ import { UsersModule } from './user/user.module';
 import { SystemModule } from './system/system.module';
 import { CourseModule } from './course/course.module';
 import { MediaModule } from './media/media.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
-  imports: [AuthModule, UsersModule, CourseModule, MediaModule, SystemModule],
+  imports: [
+    AuthModule,
+    UsersModule,
+    CourseModule,
+    ChatModule,
+    MediaModule,
+    SystemModule,
+  ],
   providers: [ApiService],
   controllers: [ApiController],
 })

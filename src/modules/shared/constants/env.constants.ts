@@ -11,6 +11,7 @@ const envSchema = z.object({
   MAILGUN_API_KEY: z.string(),
   MAILGUN_DOMAIN: z.string(),
   AI_WEB_URL: z.string(),
+  AI_CHAT_URL: z.string(),
   CLOUDINARY_API_KEY: z.string(),
   CLOUDINARY_CLOUD_NAME: z.string(),
   CLOUDINARY_API_SECRET: z.string(),
