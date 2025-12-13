@@ -7,6 +7,7 @@ import { SystemModule } from './system/system.module';
 import { CourseModule } from './course/course.module';
 import { MediaModule } from './media/media.module';
 import { ChatModule } from './chat/chat.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ChatModule } from './chat/chat.module';
     ChatModule,
     MediaModule,
     SystemModule,
+    AiModule,
   ],
   providers: [ApiService],
   controllers: [ApiController],

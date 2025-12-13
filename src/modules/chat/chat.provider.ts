@@ -78,6 +78,8 @@ export class ChatProvider {
     await this.chatService.createChatMessage({
       course,
       user,
+      module_number: body.module_number,
+      lesson_number: body.lesson_number,
       user_message: {
         sender: ChatSender.USER,
         message: body.message,
@@ -104,8 +106,17 @@ export class ChatProvider {
     user: UserDocument;
     query: ListChatMessages;
   }): Promise<IApiResponseDto> {
-    const { page, per_page, search, course_id, start_date, end_date, sender } =
-      query;
+    const {
+      page,
+      per_page,
+      search,
+      course_id,
+      start_date,
+      end_date,
+      sender,
+      module_number,
+      lesson_number,
+    } = query;
 
     const filter: FilterQuery<ChatMessageDocument> = {
       user: user._id,
@@ -119,6 +130,12 @@ export class ChatProvider {
     }
     if (course_id) {
       filter.course = course_id;
+    }
+    if (module_number !== undefined) {
+      filter.module_number = module_number;
+    }
+    if (lesson_number) {
+      filter.lesson_number = lesson_number;
     }
     if (sender) {
       filter.sender = sender;

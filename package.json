@@ -20,6 +20,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@livekit/agents": "^1.0.27",
+    "@livekit/agents-plugin-silero": "^1.0.27",
     "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
@@ -42,6 +44,7 @@
     "dotenv": "^17.2.3",
     "form-data": "^4.0.4",
     "helmet": "^8.1.0",
+    "livekit-server-sdk": "^2.15.0",
     "luxon": "^3.7.2",
     "mailgun.js": "^12.1.1",
     "mjml": "^4.16.1",

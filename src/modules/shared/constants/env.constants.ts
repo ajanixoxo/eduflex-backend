@@ -15,6 +15,9 @@ const envSchema = z.object({
   CLOUDINARY_API_KEY: z.string(),
   CLOUDINARY_CLOUD_NAME: z.string(),
   CLOUDINARY_API_SECRET: z.string(),
+  LIVEKIT_API_KEY: z.string(),
+  LIVEKIT_API_SECRET: z.string(),
+  LIVEKIT_URL: z.string(),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

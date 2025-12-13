@@ -1,12 +1,15 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEnum,
   IsOptional,
   IsString,
   IsMongoId,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   IsBoolean,
+  IsNumber,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { BaseListDto } from 'src/modules/shared/dtos';
 import { ChatSender } from '../schemas';
 
@@ -28,4 +31,24 @@ export class ListChatMessages extends BaseListDto {
   @IsOptional()
   @IsMongoId()
   course_id?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filter by module number',
+    type: Number,
+    example: 1,
+  })
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @Type(() => Number)
+  @IsNumber()
+  module_number?: number;
+
+  @ApiPropertyOptional({
+    description: 'Filter by lesson number',
+    type: String,
+    example: '1.1',
+  })
+  @IsOptional()
+  @IsString()
+  lesson_number?: string;
 }

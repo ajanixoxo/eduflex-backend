@@ -31,6 +31,18 @@ export class ChatMessage extends TimestampMixin {
   course: CourseDocument;
 
   @Prop({
+    type: Number,
+    required: true,
+  })
+  module_number: number;
+
+  @Prop({
+    type: String,
+    required: true,
+  })
+  lesson_number: string;
+
+  @Prop({
     type: new MongooseSchema({
       sender: {
         type: String,
