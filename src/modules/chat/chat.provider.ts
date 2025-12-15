@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { CourseService } from '../course/course.service';
 import { UserDocument } from '../user/schemas';
-import { ListChatMessages, SendChatMessageDto } from './dtos';
+import { ListChatMessages, SendChatMessageDto, SaveTranscriptDto } from './dtos';
 import { IApiResponseDto } from '../shared/types';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection, FilterQuery } from 'mongoose';
@@ -153,6 +153,54 @@ export class ChatProvider {
       data: {
         items,
         meta,
+      },
+    };
+  }
+
+  async saveVoiceTranscript({
+    user,
+    body,
+  }: {
+    user: UserDocument;
+    body: SaveTranscriptDto;
+  }): Promise<IApiResponseDto> {
+    const course = await this.courseService.getCourse({
+      user,
+      _id: body.course_id,
+    });
+    if (!course) throw new NotFoundException('Course not found');
+
+    const module = course.modules.find(
+      (m) => m.module_number === body.module_number,
+    );
+    if (!module) throw new NotFoundException('Module not found');
+
+    const currentLesson = module.lessons.find(
+      (l) => l.lesson_number === body.lesson_number,
+    );
+    if (!currentLesson) throw new NotFoundException('Lesson not found');
+
+    await this.chatService.createChatMessage({
+      course,
+      user,
+      module_number: body.module_number,
+      lesson_number: body.lesson_number,
+      user_message: {
+        sender: ChatSender.USER,
+        message: body.user_transcript,
+      },
+      ai_reply: {
+        sender: ChatSender.AI,
+        message: body.ai_response,
+        is_error: false,
+      },
+    });
+
+    return {
+      message: 'Voice transcript saved successfully',
+      data: {
+        user_transcript: body.user_transcript,
+        ai_response: body.ai_response,
       },
     };
   }

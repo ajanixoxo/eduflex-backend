@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ChatProvider } from './chat.provider';
 import { Auth } from 'src/decorators';
 import { type UserDocument } from '../user/schemas';
-import { ListChatMessages, SendChatMessageDto } from './dtos';
+import { ListChatMessages, SendChatMessageDto, SaveTranscriptDto } from './dtos';
 
 @Controller('chat')
 @ApiTags('Chat')
@@ -24,6 +24,15 @@ export class ChatController {
     @Query() query: ListChatMessages,
   ) {
     const data = await this.chatProvider.getChatMessages({ user, query });
+    return data;
+  }
+
+  @Post('save-transcript')
+  async saveTranscript(
+    @Auth() user: UserDocument,
+    @Body() body: SaveTranscriptDto,
+  ) {
+    const data = await this.chatProvider.saveVoiceTranscript({ user, body });
     return data;
   }
 }
