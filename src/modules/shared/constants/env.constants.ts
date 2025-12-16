@@ -18,6 +18,7 @@ const envSchema = z.object({
   LIVEKIT_API_KEY: z.string(),
   LIVEKIT_API_SECRET: z.string(),
   LIVEKIT_URL: z.string(),
+  AGENT_API_KEY: z.string().optional(), // Optional API key for agent authentication
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

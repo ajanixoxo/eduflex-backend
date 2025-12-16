@@ -2,7 +2,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { CourseService } from '../course/course.service';
 import { UserDocument } from '../user/schemas';
-import { ListChatMessages, SendChatMessageDto, SaveTranscriptDto } from './dtos';
+import {
+  ListChatMessages,
+  SendChatMessageDto,
+  SaveTranscriptDto,
+  AgentSaveUserTranscriptDto,
+  AgentSaveAiTranscriptDto,
+} from './dtos';
 import { IApiResponseDto } from '../shared/types';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection, FilterQuery } from 'mongoose';
@@ -200,6 +206,99 @@ export class ChatProvider {
       message: 'Voice transcript saved successfully',
       data: {
         user_transcript: body.user_transcript,
+        ai_response: body.ai_response,
+      },
+    };
+  }
+
+  /**
+   * Save user transcript from LiveKit agent
+   * Called when user speaks and agent transcribes the speech
+   * Returns message_id to be used when saving AI response
+   */
+  async saveAgentUserTranscript(
+    body: AgentSaveUserTranscriptDto,
+  ): Promise<IApiResponseDto> {
+    // Find user by ID
+    const user = await this.connection.models.User.findById(body.user_id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Validate course access
+    const course = await this.courseService.getCourse({
+      user,
+      _id: body.course_id,
+    });
+    if (!course) throw new NotFoundException('Course not found');
+
+    const module = course.modules.find(
+      (m) => m.module_number === body.module_number,
+    );
+    if (!module) throw new NotFoundException('Module not found');
+
+    const currentLesson = module.lessons.find(
+      (l) => l.lesson_number === body.lesson_number,
+    );
+    if (!currentLesson) throw new NotFoundException('Lesson not found');
+
+    // Create chat message with user transcript and pending AI reply
+    const chatMessage = await this.chatService.createChatMessage({
+      course,
+      user,
+      module_number: body.module_number,
+      lesson_number: body.lesson_number,
+      user_message: {
+        sender: ChatSender.USER,
+        message: body.user_transcript,
+        metadata: { room_name: body.room_name },
+      },
+      ai_reply: {
+        sender: ChatSender.AI,
+        message: '[Pending]', // Placeholder until AI responds
+        is_error: false,
+      },
+    });
+
+    return {
+      message: 'User transcript saved successfully',
+      data: {
+        message_id: chatMessage._id.toString(),
+        user_transcript: body.user_transcript,
+      },
+    };
+  }
+
+  /**
+   * Save AI transcript from LiveKit agent
+   * Called when agent generates and speaks the AI response
+   * Updates the message created by saveAgentUserTranscript
+   */
+  async saveAgentAiTranscript(
+    body: AgentSaveAiTranscriptDto,
+  ): Promise<IApiResponseDto> {
+    // Find the chat message by ID
+    const chatMessage = await this.chatService.getChatMessage({
+      _id: body.message_id,
+    });
+
+    if (!chatMessage) {
+      throw new NotFoundException('Chat message not found');
+    }
+
+    // Update the AI reply
+    chatMessage.ai_reply = {
+      sender: ChatSender.AI,
+      message: body.ai_response,
+      is_error: false,
+    };
+
+    await chatMessage.save();
+
+    return {
+      message: 'AI transcript saved successfully',
+      data: {
+        message_id: body.message_id,
         ai_response: body.ai_response,
       },
     };
