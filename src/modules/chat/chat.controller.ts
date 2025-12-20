@@ -17,6 +17,7 @@ import {
   SaveTranscriptDto,
   AgentSaveUserTranscriptDto,
   AgentSaveAiTranscriptDto,
+  AgentSaveTranscriptDto,
 } from './dtos';
 import { Env } from '../shared/constants';
 
@@ -47,7 +48,7 @@ export class ChatController {
   @Post('save-transcript')
   async saveTranscript(
     @Auth() user: UserDocument,
-    @Body() body: SaveTranscriptDto,
+    @Body() body: AgentSaveTranscriptDto,
   ) {
     const data = await this.chatProvider.saveVoiceTranscript({ user, body });
     return data;
@@ -62,7 +63,8 @@ export class ChatController {
   @IsPublic()
   @ApiHeader({
     name: 'X-Agent-API-Key',
-    description: 'Agent API Key for authentication (optional if AGENT_API_KEY not set in env)',
+    description:
+      'Agent API Key for authentication (optional if AGENT_API_KEY not set in env)',
     required: false,
   })
   async agentSaveUserTranscript(
@@ -87,7 +89,8 @@ export class ChatController {
   @IsPublic()
   @ApiHeader({
     name: 'X-Agent-API-Key',
-    description: 'Agent API Key for authentication (optional if AGENT_API_KEY not set in env)',
+    description:
+      'Agent API Key for authentication (optional if AGENT_API_KEY not set in env)',
     required: false,
   })
   async agentSaveAiTranscript(
@@ -100,6 +103,32 @@ export class ChatController {
     }
 
     const data = await this.chatProvider.saveAgentAiTranscript(body);
+    return data;
+  }
+
+  /**
+   * Unified endpoint for LiveKit agent to save transcripts
+   * Accepts both user and AI messages based on speaker_type
+   * Parses room_name to extract course/module/lesson automatically
+   */
+  @Post('agent/save-transcript')
+  @IsPublic()
+  @ApiHeader({
+    name: 'X-Agent-API-Key',
+    description:
+      'Agent API Key for authentication (optional if AGENT_API_KEY not set in env)',
+    required: false,
+  })
+  async agentSaveTranscript(
+    @Body() body: AgentSaveTranscriptDto,
+    @Headers('x-agent-api-key') apiKey?: string,
+  ) {
+    // Validate API key if configured
+    if ((Env as any).AGENT_API_KEY && apiKey !== (Env as any).AGENT_API_KEY) {
+      throw new UnauthorizedException('Invalid agent API key');
+    }
+
+    const data = await this.chatProvider.saveAgentTranscript(body);
     return data;
   }
 }

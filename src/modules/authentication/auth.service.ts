@@ -37,7 +37,7 @@ export class AuthService {
   ): Promise<UserAuthDocument | null> {
     return await this.userAuthModel.findOne(filter);
   }
-  // eslint-disable-next-line @typescript-eslint/require-await
+
   async generateOTP(length: number = 6): Promise<string> {
     const otp = Array.from({ length }, () =>
       Math.floor(Math.random() * 10),

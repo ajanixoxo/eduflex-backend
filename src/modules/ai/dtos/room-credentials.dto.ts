@@ -17,4 +17,3 @@ export class RoomCredentialsDto {
   @IsString()
   lessonNumber: string;
 }
-

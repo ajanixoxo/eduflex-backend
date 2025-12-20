@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { AccessToken, VideoGrant } from 'livekit-server-sdk';
 import { RoomConfiguration } from '@livekit/protocol';
 import { Env } from '../shared/constants';
@@ -43,9 +47,7 @@ export class AiService {
       (m) => m.module_number === moduleNumber,
     );
     if (!module) {
-      throw new NotFoundException(
-        `Module ${moduleNumber} not found in course`,
-      );
+      throw new NotFoundException(`Module ${moduleNumber} not found in course`);
     }
 
     const lesson = module.lessons?.find(
@@ -96,4 +98,3 @@ export class AiService {
     return await at.toJwt();
   }
 }
-

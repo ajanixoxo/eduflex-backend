@@ -4,7 +4,8 @@ import { Transform } from 'class-transformer';
 
 export class AgentSaveUserTranscriptDto {
   @ApiProperty({
-    description: 'User ID (MongoDB ObjectId) - extract from LiveKit participant identity (e.g., "user-{userId}")',
+    description:
+      'User ID (MongoDB ObjectId) - extract from LiveKit participant identity (e.g., "user-{userId}")',
     type: String,
     example: '507f1f77bcf86cd799439011',
     required: true,
@@ -55,7 +56,8 @@ export class AgentSaveUserTranscriptDto {
   user_transcript: string;
 
   @ApiProperty({
-    description: 'LiveKit room name (format: course-{courseId}-module-{moduleNumber}-lesson-{lessonNumber})',
+    description:
+      'LiveKit room name (format: course-{courseId}-module-{moduleNumber}-lesson-{lessonNumber})',
     type: String,
     example: 'course-690b23088c3c3884ccb65f82-module-1-lesson-1.1',
     required: true,
@@ -64,4 +66,3 @@ export class AgentSaveUserTranscriptDto {
   @IsNotEmpty()
   room_name: string;
 }
-

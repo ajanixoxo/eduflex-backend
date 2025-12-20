@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { CourseService } from '../course/course.service';
 import { UserDocument } from '../user/schemas';
@@ -8,12 +12,44 @@ import {
   SaveTranscriptDto,
   AgentSaveUserTranscriptDto,
   AgentSaveAiTranscriptDto,
+  AgentSaveTranscriptDto,
+  SpeakerType,
 } from './dtos';
 import { IApiResponseDto } from '../shared/types';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection, FilterQuery } from 'mongoose';
 import { ChatMessageDocument, ChatSender } from './schemas';
 import { formatToGmtPlus1 } from 'src/helpers';
+
+interface ParsedRoomName {
+  course_id: string;
+  module_number: number;
+  lesson_number: string;
+  isValid: boolean;
+}
+
+function parseRoomName(roomName: string): ParsedRoomName {
+  // Parse format: course-{courseId}-module-{moduleNumber}-lesson-{lessonNumber}
+  // Example: course-6925663977e9779b16370bb4-module-1-lesson-1.2
+  const pattern = /^course-([a-f0-9]{24})-module-(\d+)-lesson-([\d.]+)$/i;
+  const match = roomName.match(pattern);
+
+  if (match) {
+    return {
+      course_id: match[1],
+      module_number: parseInt(match[2], 10),
+      lesson_number: match[3],
+      isValid: true,
+    };
+  }
+
+  return {
+    course_id: '',
+    module_number: 0,
+    lesson_number: '',
+    isValid: false,
+  };
+}
 
 @Injectable()
 export class ChatProvider {
@@ -168,47 +204,115 @@ export class ChatProvider {
     body,
   }: {
     user: UserDocument;
-    body: SaveTranscriptDto;
+    body: AgentSaveTranscriptDto;
   }): Promise<IApiResponseDto> {
+    // Parse room_name to extract course/module/lesson
+    const parsed = parseRoomName(body.room_name);
+
+    if (!parsed.isValid) {
+      throw new BadRequestException(
+        `Invalid room_name format. Expected: course-{courseId}-module-{moduleNumber}-lesson-{lessonNumber}, got: ${body.room_name}`,
+      );
+    }
+
+    const { course_id, module_number, lesson_number } = parsed;
+
     const course = await this.courseService.getCourse({
       user,
-      _id: body.course_id,
+      _id: course_id,
     });
     if (!course) throw new NotFoundException('Course not found');
 
     const module = course.modules.find(
-      (m) => m.module_number === body.module_number,
+      (m) => m.module_number === module_number,
     );
     if (!module) throw new NotFoundException('Module not found');
 
     const currentLesson = module.lessons.find(
-      (l) => l.lesson_number === body.lesson_number,
+      (l) => l.lesson_number === lesson_number,
     );
     if (!currentLesson) throw new NotFoundException('Lesson not found');
 
-    await this.chatService.createChatMessage({
-      course,
-      user,
-      module_number: body.module_number,
-      lesson_number: body.lesson_number,
-      user_message: {
-        sender: ChatSender.USER,
-        message: body.user_transcript,
-      },
-      ai_reply: {
-        sender: ChatSender.AI,
-        message: body.ai_response,
-        is_error: false,
-      },
-    });
+    // Determine if this is a user or AI message
+    const isUserMessage = body.speaker_type === SpeakerType.USER;
+    const isAiMessage =
+      body.speaker_type === SpeakerType.AI ||
+      body.speaker_type === SpeakerType.AGENT;
 
-    return {
-      message: 'Voice transcript saved successfully',
-      data: {
-        user_transcript: body.user_transcript,
-        ai_response: body.ai_response,
-      },
-    };
+    if (isUserMessage) {
+      // Create chat message with user transcript and pending AI reply
+      const chatMessage = await this.chatService.createChatMessage({
+        course,
+        user,
+        module_number,
+        lesson_number,
+        user_message: {
+          sender: ChatSender.USER,
+          message: body.text,
+          metadata: {
+            room_name: body.room_name,
+            language: body.language,
+            timestamp: body.timestamp,
+          },
+        },
+        ai_reply: {
+          sender: ChatSender.AI,
+          message: '[Pending]',
+          is_error: false,
+        },
+      });
+
+      return {
+        message: 'User transcript saved successfully',
+        data: {
+          message_id: chatMessage._id.toString(),
+          user_transcript: body.text,
+        },
+      };
+    } else if (isAiMessage) {
+      // Handle AI message - update existing message
+      if (!body.message_id) {
+        throw new BadRequestException('message_id is required for AI messages');
+      }
+
+      const chatMessage = await this.chatService.getChatMessage({
+        _id: body.message_id,
+      });
+
+      if (!chatMessage) {
+        throw new NotFoundException('Chat message not found');
+      }
+
+      // Verify the message belongs to this user
+      if (chatMessage.user.toString() !== user._id.toString()) {
+        throw new NotFoundException('Chat message not found');
+      }
+
+      chatMessage.ai_reply = {
+        sender: ChatSender.AI,
+        message: body.text,
+        is_error: false,
+        metadata: {
+          room_name: body.room_name,
+          language: body.language,
+          timestamp: body.timestamp,
+        },
+      };
+
+      await chatMessage.save();
+
+      return {
+        message: 'AI transcript saved successfully',
+        data: {
+          message_id: body.message_id,
+          ai_response: body.text,
+        },
+      };
+    } else {
+      throw new BadRequestException(
+        `Invalid speaker_type: ${body.speaker_type}`,
+      );
+    }
   }
 
   /**
@@ -302,5 +406,137 @@ export class ChatProvider {
         ai_response: body.ai_response,
       },
     };
+  }
+
+  /**
+   * Unified endpoint to save transcripts from LiveKit agent
+   * Parses room_name to extract course/module/lesson information
+   * Handles both user and AI messages based on speaker_type
+   */
+  async saveAgentTranscript(
+    body: AgentSaveTranscriptDto,
+  ): Promise<IApiResponseDto> {
+    const {
+      room_name,
+      speaker_type,
+      text,
+      user_id,
+      message_id,
+      language,
+      timestamp,
+    } = body;
+
+    // Parse room_name to extract course/module/lesson
+    const parsed = parseRoomName(room_name);
+
+    if (!parsed.isValid) {
+      throw new BadRequestException(
+        `Invalid room_name format. Expected: course-{courseId}-module-{moduleNumber}-lesson-{lessonNumber}, got: ${room_name}`,
+      );
+    }
+
+    const { course_id, module_number, lesson_number } = parsed;
+
+    // Determine if this is a user or AI message
+    const isUserMessage = speaker_type === SpeakerType.USER;
+    const isAiMessage =
+      speaker_type === SpeakerType.AI || speaker_type === SpeakerType.AGENT;
+
+    if (isUserMessage) {
+      // Handle user message
+      if (!user_id) {
+        throw new BadRequestException('user_id is required for user messages');
+      }
+
+      const user = await this.connection.models.User.findById(user_id);
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Validate course access
+      const course = await this.courseService.getCourse({
+        user,
+        _id: course_id,
+      });
+      if (!course) throw new NotFoundException('Course not found');
+
+      const module = course.modules.find(
+        (m) => m.module_number === module_number,
+      );
+      if (!module) throw new NotFoundException('Module not found');
+
+      const currentLesson = module.lessons.find(
+        (l) => l.lesson_number === lesson_number,
+      );
+      if (!currentLesson) throw new NotFoundException('Lesson not found');
+
+      // Create chat message with user transcript and pending AI reply
+      const chatMessage = await this.chatService.createChatMessage({
+        course,
+        user,
+        module_number,
+        lesson_number,
+        user_message: {
+          sender: ChatSender.USER,
+          message: text,
+          metadata: {
+            room_name,
+            language,
+            timestamp,
+          },
+        },
+        ai_reply: {
+          sender: ChatSender.AI,
+          message: '[Pending]', // Placeholder until AI responds
+          is_error: false,
+        },
+      });
+
+      return {
+        message: 'User transcript saved successfully',
+        data: {
+          message_id: chatMessage._id.toString(),
+          user_transcript: text,
+        },
+      };
+    } else if (isAiMessage) {
+      // Handle AI message
+      if (!message_id) {
+        throw new BadRequestException('message_id is required for AI messages');
+      }
+
+      // Find the chat message by ID
+      const chatMessage = await this.chatService.getChatMessage({
+        _id: message_id,
+      });
+
+      if (!chatMessage) {
+        throw new NotFoundException('Chat message not found');
+      }
+
+      // Update the AI reply
+      chatMessage.ai_reply = {
+        sender: ChatSender.AI,
+        message: text,
+        is_error: false,
+        metadata: {
+          room_name,
+          language,
+          timestamp,
+        },
+      };
+
+      await chatMessage.save();
+
+      return {
+        message: 'AI transcript saved successfully',
+        data: {
+          message_id: message_id,
+          ai_response: text,
+        },
+      };
+    } else {
+      throw new BadRequestException(`Invalid speaker_type: ${speaker_type}`);
+    }
   }
 }

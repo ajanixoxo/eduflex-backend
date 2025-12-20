@@ -43,10 +43,10 @@ export class SaveTranscriptDto {
   @ApiProperty({
     description: 'AI response text',
     type: String,
-    example: 'Photosynthesis is the process by which plants convert light energy into chemical energy.',
+    example:
+      'Photosynthesis is the process by which plants convert light energy into chemical energy.',
     required: true,
   })
   @IsString()
   ai_response: string;
 }
-

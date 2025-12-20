@@ -15,11 +15,11 @@ export class AgentSaveAiTranscriptDto {
   @ApiProperty({
     description: 'AI response text (transcribed from TTS or text response)',
     type: String,
-    example: 'Photosynthesis is the process by which plants convert light energy into chemical energy.',
+    example:
+      'Photosynthesis is the process by which plants convert light energy into chemical energy.',
     required: true,
   })
   @IsString()
   @IsNotEmpty()
   ai_response: string;
 }
-
