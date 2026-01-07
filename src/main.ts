@@ -46,4 +46,4 @@ async function bootstrap() {
   SwaggerModule.setup('/api-gateway/v1/docs', app, document);
   await app.listen(Env.PORT || '5000');
 }
-bootstrap();
+void bootstrap();

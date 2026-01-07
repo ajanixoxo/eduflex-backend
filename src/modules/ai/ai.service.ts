@@ -143,7 +143,8 @@ export class AiService {
     course_experience_level?: string;
   }> {
     // Parse room name
-    const { courseId, moduleNumber, lessonNumber } = this.parseRoomName(roomName);
+    const { courseId, moduleNumber, lessonNumber } =
+      this.parseRoomName(roomName);
 
     // Get course
     const course = await this.courseService.getCourse({ _id: courseId });

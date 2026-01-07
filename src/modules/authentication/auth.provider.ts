@@ -171,7 +171,7 @@ export class AuthProvider {
       }
 
       const otp = await this.authService.generateAndSaveOtp(user);
-      this.emailService.sendEmailNotification({
+      void this.emailService.sendEmailNotification({
         email: user.email,
         subject: 'OTP Verification',
         body: OtpTemplate({
@@ -273,7 +273,7 @@ export class AuthProvider {
       }
 
       const otp = await this.authService.generateAndSaveOtp(user);
-      this.emailService.sendEmailNotification({
+      void this.emailService.sendEmailNotification({
         email: user.email,
         subject: 'Password Reset',
         body: ForgotPasswordTemplate({
@@ -368,7 +368,7 @@ export class AuthProvider {
       userAuth.reset_token = undefined;
       await userAuth.save();
 
-      this.emailService.sendEmailNotification({
+      void this.emailService.sendEmailNotification({
         email: user.email,
         subject: 'Password Updated!',
         body: PasswordResetConfirmationTemplate({ user }),
