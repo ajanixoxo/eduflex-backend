@@ -97,4 +97,94 @@ export class AiService {
 
     return await at.toJwt();
   }
+
+  /**
+   * Parse room name to extract course ID, module number, and lesson number
+   * Format: course-{courseId}-module-{moduleNumber}-lesson-{lessonNumber}
+   */
+  parseRoomName(roomName: string): {
+    courseId: string;
+    moduleNumber: number;
+    lessonNumber: string;
+  } {
+    const pattern = /^course-(.+)-module-(\d+)-lesson-(.+)$/;
+    const match = roomName.match(pattern);
+
+    if (!match) {
+      throw new BadRequestException(
+        `Invalid room name format. Expected: course-{courseId}-module-{moduleNumber}-lesson-{lessonNumber}, got: ${roomName}`,
+      );
+    }
+
+    return {
+      courseId: match[1],
+      moduleNumber: parseInt(match[2], 10),
+      lessonNumber: match[3],
+    };
+  }
+
+  /**
+   * Get room context for AI agent
+   * Returns course, module, and lesson information for the agent to use
+   */
+  async getRoomContext(roomName: string): Promise<{
+    course_id: string;
+    course_title: string;
+    course_topic: string;
+    course_reason?: string;
+    module_number: number;
+    module_title: string;
+    lesson_number: string;
+    lesson_title: string;
+    lesson_type: string;
+    course_language?: string;
+    course_teaching_style?: string;
+    course_pace?: string;
+    course_experience_level?: string;
+  }> {
+    // Parse room name
+    const { courseId, moduleNumber, lessonNumber } = this.parseRoomName(roomName);
+
+    // Get course
+    const course = await this.courseService.getCourse({ _id: courseId });
+    if (!course) {
+      throw new NotFoundException(`Course with ID ${courseId} not found`);
+    }
+
+    // Find module
+    const module = course.modules?.find(
+      (m) => m.module_number === moduleNumber,
+    );
+    if (!module) {
+      throw new NotFoundException(
+        `Module ${moduleNumber} not found in course ${courseId}`,
+      );
+    }
+
+    // Find lesson
+    const lesson = module.lessons?.find(
+      (l) => l.lesson_number === lessonNumber,
+    );
+    if (!lesson) {
+      throw new NotFoundException(
+        `Lesson ${lessonNumber} not found in module ${moduleNumber}`,
+      );
+    }
+
+    return {
+      course_id: course._id.toString(),
+      course_title: course.title,
+      course_topic: course.topic,
+      course_reason: course.reason,
+      module_number: moduleNumber,
+      module_title: module.title,
+      lesson_number: lessonNumber,
+      lesson_title: lesson.title,
+      lesson_type: lesson.type,
+      course_language: course.language,
+      course_teaching_style: course.teaching_style,
+      course_pace: course.pace,
+      course_experience_level: course.experience_level,
+    };
+  }
 }

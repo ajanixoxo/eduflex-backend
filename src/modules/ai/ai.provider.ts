@@ -40,4 +40,8 @@ export class AiProvider {
       serverUrl: Env.LIVEKIT_URL,
     };
   }
+
+  async getRoomContext(roomName: string) {
+    return await this.aiService.getRoomContext(roomName);
+  }
 }
