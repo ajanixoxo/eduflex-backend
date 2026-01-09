@@ -48,7 +48,8 @@ export class AuthProvider {
       const { email, password, account_type } = userLoginDto;
 
       const user = await this.userService.getUser({ email });
-      if (!user) throw new NotFoundException('User not found');
+      // Security: Don't reveal if email exists - use same error message as wrong password
+      if (!user) throw new UnauthorizedException('Invalid credentials');
 
       if (
         account_type === UserTypes.CUSTOMER &&

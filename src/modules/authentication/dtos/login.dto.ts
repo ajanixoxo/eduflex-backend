@@ -4,11 +4,8 @@ import {
   IsEmail,
   IsEnum,
   IsString,
-  IsStrongPassword,
   MaxLength,
   MinLength,
-  ValidateIf,
-  Matches,
   IsNotEmpty,
 } from 'class-validator';
 import { PWD_LENGTH } from '../enums';
@@ -22,13 +19,12 @@ export class UserLoginDto {
   email: string;
 
   @ApiProperty({
-    description:
-      'Should be a combination of uppercase/lowercase, numbers and special characters',
+    description: 'User password',
     minLength: Number(PWD_LENGTH.MIN),
     maxLength: Number(PWD_LENGTH.MAX),
   })
   @IsString()
-  @IsStrongPassword()
+  @IsNotEmpty()
   @MinLength(Number(PWD_LENGTH.MIN))
   @MaxLength(Number(PWD_LENGTH.MAX))
   password: string;
