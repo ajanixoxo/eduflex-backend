@@ -90,7 +90,11 @@ export class ChatProvider {
     if (!currentLesson) throw new NotFoundException('Lesson not found');
 
     // Upload images to Cloudinary
-    const uploadedImages = [];
+    const uploadedImages: Array<{
+      url: string;
+      media_id?: any;
+      thumbnail_url?: string;
+    }> = [];
     if (imageFiles && imageFiles.length > 0) {
       for (const file of imageFiles) {
         try {
@@ -113,7 +117,11 @@ export class ChatProvider {
     }
 
     // Upload videos to Cloudinary
-    const uploadedVideos = [];
+    const uploadedVideos: Array<{
+      url: string;
+      media_id?: any;
+      thumbnail_url?: string;
+    }> = [];
     if (videoFiles && videoFiles.length > 0) {
       for (const file of videoFiles) {
         try {
@@ -175,8 +183,12 @@ export class ChatProvider {
     });
 
     // Parse AI response - check if it includes video URLs
-    let aiVideos = [];
-    let aiResponseMessage = agentResponse;
+    const aiVideos: Array<{
+      url: string;
+      thumbnail_url?: string;
+      duration?: number;
+    }> = [];
+    let aiResponseMessage: string = '';
     
     // If agent response is an object with video_url, extract it
     if (typeof agentResponse === 'object' && agentResponse !== null) {
@@ -190,6 +202,9 @@ export class ChatProvider {
           duration: responseObj.video_duration,
         });
       }
+    } else {
+      // If it's a string, use it directly
+      aiResponseMessage = typeof agentResponse === 'string' ? agentResponse : String(agentResponse);
     }
 
     await this.chatService.createChatMessage({
