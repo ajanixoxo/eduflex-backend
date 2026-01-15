@@ -5,6 +5,8 @@ import {
 } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { CourseService } from '../course/course.service';
+import { MediaProvider } from '../media/media.provider';
+import { MediaType } from '../media/enums';
 import { UserDocument } from '../user/schemas';
 import {
   ListChatMessages,
@@ -56,15 +58,20 @@ export class ChatProvider {
   constructor(
     private readonly chatService: ChatService,
     private readonly courseService: CourseService,
+    private readonly mediaProvider: MediaProvider,
     @InjectConnection() private readonly connection: Connection,
   ) {}
 
   async sendMessageToAgent({
     user,
     body,
+    imageFiles,
+    videoFiles,
   }: {
     user: UserDocument;
     body: SendChatMessageDto;
+    imageFiles?: Express.Multer.File[];
+    videoFiles?: Express.Multer.File[];
   }): Promise<IApiResponseDto> {
     const course = await this.courseService.getCourse({
       user,
@@ -81,6 +88,52 @@ export class ChatProvider {
       (l) => l.lesson_number === body.lesson_number,
     );
     if (!currentLesson) throw new NotFoundException('Lesson not found');
+
+    // Upload images to Cloudinary
+    const uploadedImages = [];
+    if (imageFiles && imageFiles.length > 0) {
+      for (const file of imageFiles) {
+        try {
+          const uploadResult = await this.mediaProvider.uploadMedia(
+            user,
+            file,
+            { media_type: MediaType.CHAT_IMAGE },
+          );
+
+          uploadedImages.push({
+            url: uploadResult.data.url, // Cloudinary secure_url
+            media_id: uploadResult.data._id, // Reference to Media document
+            thumbnail_url: uploadResult.data.url, // Can generate thumbnail later
+          });
+        } catch (error) {
+          // Log error but continue with other files
+          console.error(`Failed to upload image: ${file.originalname}`, error);
+        }
+      }
+    }
+
+    // Upload videos to Cloudinary
+    const uploadedVideos = [];
+    if (videoFiles && videoFiles.length > 0) {
+      for (const file of videoFiles) {
+        try {
+          const uploadResult = await this.mediaProvider.uploadMedia(
+            user,
+            file,
+            { media_type: MediaType.CHAT_VIDEO },
+          );
+
+          uploadedVideos.push({
+            url: uploadResult.data.url,
+            media_id: uploadResult.data._id,
+            thumbnail_url: uploadResult.data.url, // Can extract thumbnail from video
+          });
+        } catch (error) {
+          // Log error but continue with other files
+          console.error(`Failed to upload video: ${file.originalname}`, error);
+        }
+      }
+    }
 
     const context = `You are an intelligent AI assisting with the course: ${course.title}, Module: ${module.title}, Lesson: ${currentLesson.title}. The lesson content is as follows: ${currentLesson.title}. Please provide a helpful response based on this context. Responses should be concise and relevant to the lesson. If a user asks a question outside the scope of this lesson, politely inform them that you can only assist with questions related to the current lesson.`;
 
@@ -104,9 +157,13 @@ export class ChatProvider {
       },
     ]);
 
+    // Prepare image URLs for AI vision (if supported)
+    const imageUrls = uploadedImages.map((img) => img.url);
+
     const agentResponse = await this.chatService.getAgentResponse({
       payload: {
         question: body.message,
+        image_urls: imageUrls.length > 0 ? imageUrls : undefined, // Pass images for AI vision
         history: [
           ...formattedPastMessages,
           {
@@ -117,6 +174,24 @@ export class ChatProvider {
       },
     });
 
+    // Parse AI response - check if it includes video URLs
+    let aiVideos = [];
+    let aiResponseMessage = agentResponse;
+    
+    // If agent response is an object with video_url, extract it
+    if (typeof agentResponse === 'object' && agentResponse !== null) {
+      const responseObj = agentResponse as any;
+      aiResponseMessage = responseObj.message || responseObj.reply || JSON.stringify(agentResponse);
+      
+      if (responseObj.video_url) {
+        aiVideos.push({
+          url: responseObj.video_url,
+          thumbnail_url: responseObj.video_thumbnail_url || responseObj.video_url,
+          duration: responseObj.video_duration,
+        });
+      }
+    }
+
     await this.chatService.createChatMessage({
       course,
       user,
@@ -125,10 +200,13 @@ export class ChatProvider {
       user_message: {
         sender: ChatSender.USER,
         message: body.message,
+        images: uploadedImages.length > 0 ? uploadedImages : undefined,
+        videos: uploadedVideos.length > 0 ? uploadedVideos : undefined,
       },
       ai_reply: {
         sender: ChatSender.AI,
-        message: agentResponse,
+        message: aiResponseMessage,
+        videos: aiVideos.length > 0 ? aiVideos : undefined,
         is_error: false,
       },
     });
@@ -137,7 +215,10 @@ export class ChatProvider {
       message: 'Message sent to AI chat agent successfully',
       data: {
         your_message: body.message,
-        ai_reply: agentResponse,
+        ai_reply: aiResponseMessage,
+        images: uploadedImages,
+        videos: uploadedVideos,
+        ai_videos: aiVideos,
       },
     };
   }

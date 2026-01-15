@@ -35,6 +35,6 @@ import { CourseModule } from '../course/course.module';
   ],
   providers: [MediaProvider, MediaService],
   controllers: [MediaController],
-  exports: [MediaService],
+  exports: [MediaService, MediaProvider],
 })
 export class MediaModule {}

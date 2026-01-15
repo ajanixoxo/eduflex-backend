@@ -3,6 +3,8 @@ export enum MediaType {
   PROFILE_PICTURE = 'profile_picture',
   AI_AVATAR = 'ai_avatar',
   AI_VOICE = 'ai_voice',
+  CHAT_IMAGE = 'chat_image',
+  CHAT_VIDEO = 'chat_video',
 }
 
 export enum AIMediaOwner {

@@ -6,8 +6,13 @@ import {
   Query,
   Headers,
   UnauthorizedException,
+  UseInterceptors,
+  UploadedFiles,
+  MaxFileSizeValidator,
+  ParseFilePipe,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags, ApiHeader } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiHeader, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { ChatProvider } from './chat.provider';
 import { Auth, IsPublic } from 'src/decorators';
 import { type UserDocument } from '../user/schemas';
@@ -20,6 +25,7 @@ import {
   AgentSaveTranscriptDto,
 } from './dtos';
 import { Env } from '../shared/constants';
+import { MAX_FILE_SIZE } from '../media/enums';
 
 @Controller('chat')
 @ApiTags('Chat')
@@ -28,11 +34,47 @@ export class ChatController {
   constructor(private readonly chatProvider: ChatProvider) {}
 
   @Post('send-message-to-agent')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      description: 'Send message with optional images and videos. Max file size is 5MB per file.',
+      properties: {
+        course_id: { type: 'string', example: '690b23088c3c3884ccb65f82' },
+        module_number: { type: 'number', example: 1 },
+        lesson_number: { type: 'string', example: '1.1' },
+        message: { type: 'string', example: 'What is the topic of this lesson?' },
+        files: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+          description: 'Images or videos to attach (up to 10 files)',
+        },
+      },
+      required: ['course_id', 'module_number', 'lesson_number', 'message'],
+    },
+  })
+  @UseInterceptors(FilesInterceptor('files', 10)) // Accept up to 10 files
   async sendMessageToAgent(
     @Auth() user: UserDocument,
     @Body() body: SendChatMessageDto,
+    @UploadedFiles(
+      new ParseFilePipe({
+        validators: [new MaxFileSizeValidator({ maxSize: MAX_FILE_SIZE })],
+        fileIsRequired: false, // Files are optional
+      }),
+    )
+    files?: Express.Multer.File[],
   ) {
-    const data = await this.chatProvider.sendMessageToAgent({ user, body });
+    // Separate images and videos
+    const imageFiles = files?.filter((f) => f.mimetype.startsWith('image/')) || [];
+    const videoFiles = files?.filter((f) => f.mimetype.startsWith('video/')) || [];
+
+    const data = await this.chatProvider.sendMessageToAgent({
+      user,
+      body,
+      imageFiles,
+      videoFiles,
+    });
     return data;
   }
 

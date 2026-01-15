@@ -29,18 +29,51 @@ export class ChatService {
   }: {
     payload: {
       question: string;
+      image_urls?: string[];
       history: {
         role: ChatSender;
         content: string;
       }[];
     };
-  }): Promise<string> {
+  }): Promise<string | { message: string; video_url?: string; video_thumbnail_url?: string; video_duration?: number }> {
     try {
-      const response = await this.client.post('/chat', payload);
-      if (response.data.reply === undefined || response.data.reply === null) {
-        throw new Error('AI chat agent returned an invalid response');
-      } else {
+      // Include image URLs in payload if provided
+      const requestPayload: any = {
+        question: payload.question,
+        history: payload.history,
+      };
+      
+      if (payload.image_urls && payload.image_urls.length > 0) {
+        requestPayload.image_urls = payload.image_urls;
+      }
+
+      const response = await this.client.post('/chat', requestPayload);
+      
+      // Handle different response formats
+      if (response.data.reply !== undefined && response.data.reply !== null) {
+        // If response includes video, return object
+        if (response.data.video_url) {
+          return {
+            message: response.data.reply,
+            video_url: response.data.video_url,
+            video_thumbnail_url: response.data.video_thumbnail_url,
+            video_duration: response.data.video_duration,
+          };
+        }
         return response.data.reply;
+      } else if (response.data.message !== undefined && response.data.message !== null) {
+        // Alternative response format
+        if (response.data.video_url) {
+          return {
+            message: response.data.message,
+            video_url: response.data.video_url,
+            video_thumbnail_url: response.data.video_thumbnail_url,
+            video_duration: response.data.video_duration,
+          };
+        }
+        return response.data.message;
+      } else {
+        throw new Error('AI chat agent returned an invalid response');
       }
     } catch (error: any) {
       const message =

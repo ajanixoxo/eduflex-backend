@@ -50,6 +50,39 @@ export class ChatMessage extends TimestampMixin {
         default: ChatSender.USER,
       },
       message: { type: String, required: true },
+      images: [
+        {
+          type: new MongooseSchema(
+            {
+              url: { type: String, required: true },
+              media_id: {
+                type: MongooseSchema.Types.ObjectId,
+                ref: 'Media',
+                required: false,
+              },
+              thumbnail_url: { type: String, required: false },
+            },
+            { _id: false },
+          ),
+        },
+      ],
+      videos: [
+        {
+          type: new MongooseSchema(
+            {
+              url: { type: String, required: true },
+              media_id: {
+                type: MongooseSchema.Types.ObjectId,
+                ref: 'Media',
+                required: false,
+              },
+              thumbnail_url: { type: String, required: false },
+              duration: { type: Number, required: false }, // in seconds
+            },
+            { _id: false },
+          ),
+        },
+      ],
       metadata: { type: Object, default: null },
     }),
     required: true,
@@ -57,6 +90,17 @@ export class ChatMessage extends TimestampMixin {
   user_message: {
     sender: ChatSender;
     message: string;
+    images?: Array<{
+      url: string;
+      media_id?: string;
+      thumbnail_url?: string;
+    }>;
+    videos?: Array<{
+      url: string;
+      media_id?: string;
+      thumbnail_url?: string;
+      duration?: number;
+    }>;
     metadata?: Record<string, any>;
   };
 
@@ -68,6 +112,39 @@ export class ChatMessage extends TimestampMixin {
         default: ChatSender.AI,
       },
       message: { type: String, required: true },
+      images: [
+        {
+          type: new MongooseSchema(
+            {
+              url: { type: String, required: true },
+              media_id: {
+                type: MongooseSchema.Types.ObjectId,
+                ref: 'Media',
+                required: false,
+              },
+              thumbnail_url: { type: String, required: false },
+            },
+            { _id: false },
+          ),
+        },
+      ],
+      videos: [
+        {
+          type: new MongooseSchema(
+            {
+              url: { type: String, required: true },
+              media_id: {
+                type: MongooseSchema.Types.ObjectId,
+                ref: 'Media',
+                required: false,
+              },
+              thumbnail_url: { type: String, required: false },
+              duration: { type: Number, required: false }, // in seconds
+            },
+            { _id: false },
+          ),
+        },
+      ],
       is_error: { type: Boolean, default: false },
       metadata: { type: Object, default: null },
     }),
@@ -76,6 +153,17 @@ export class ChatMessage extends TimestampMixin {
   ai_reply: {
     sender: ChatSender;
     message: string;
+    images?: Array<{
+      url: string;
+      media_id?: string;
+      thumbnail_url?: string;
+    }>;
+    videos?: Array<{
+      url: string;
+      media_id?: string;
+      thumbnail_url?: string;
+      duration?: number;
+    }>;
     is_error: boolean;
     metadata?: Record<string, any>;
   };

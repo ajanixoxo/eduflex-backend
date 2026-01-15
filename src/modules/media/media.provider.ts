@@ -51,9 +51,18 @@ export class MediaProvider {
         'audio/ogg',
         'audio/webm',
       ];
+      const allowedVideoTypes = [
+        'video/mp4',
+        'video/webm',
+        'video/quicktime',
+        'video/x-msvideo', // .avi
+        'video/ogg',
+      ];
+      
       if (
         data.media_type === MediaType.AI_AVATAR ||
-        data.media_type === MediaType.PROFILE_PICTURE
+        data.media_type === MediaType.PROFILE_PICTURE ||
+        data.media_type === MediaType.CHAT_IMAGE
       ) {
         if (
           !file.mimetype.startsWith('image/') ||
@@ -72,6 +81,15 @@ export class MediaProvider {
         }
       }
 
+      if (data.media_type === MediaType.CHAT_VIDEO) {
+        if (
+          !file.mimetype.startsWith('video/') ||
+          !allowedVideoTypes.includes(file.mimetype)
+        ) {
+          throw new BadRequestException('Unsupported video format');
+        }
+      }
+
       let originalName = file.originalname;
       if (originalName.endsWith('.mpa'))
         originalName = originalName.replace(/\.mpa$/i, '.mp3');
@@ -79,17 +97,24 @@ export class MediaProvider {
       const folders: Record<string, string> = {
         [MediaType.AI_AVATAR]: `eduflexai/${user._id}/ai_avatars`,
         [MediaType.AI_VOICE]: `eduflexai/${user._id}/ai_voices`,
+        [MediaType.CHAT_IMAGE]: `eduflexai/${user._id}/chat/images`,
+        [MediaType.CHAT_VIDEO]: `eduflexai/${user._id}/chat/videos`,
       };
       const folder =
         folders[data.media_type] ?? `eduflexai/${user._id}/uploads`;
 
       const base64 = file.buffer.toString('base64');
+      const resourceType =
+        data.media_type === MediaType.AI_VOICE ||
+        data.media_type === MediaType.CHAT_VIDEO
+          ? 'video'
+          : 'auto';
+      
       const res = await cloudinary.uploader.upload(
         `data:${file.mimetype};base64,${base64}`,
         {
           folder,
-          resource_type:
-            data.media_type === MediaType.AI_VOICE ? 'video' : 'auto',
+          resource_type: resourceType,
         },
       );
       const media = await this.mediaService.createMedia({
