@@ -34,9 +34,12 @@ export class AiProvider {
 
     const token = await this.aiService.generateLiveKitToken(user, roomName);
 
-    // Note: Agent dispatch is handled automatically via roomConfig in the token
-    // which includes agents: [{ agentName: 'eduflex-ai-agent' }]
-    // Do NOT call dispatchAgent() here as it causes duplicate agents
+    // Explicitly dispatch the agent to ensure it joins
+    // The agent has a duplicate guard so calling this is safe even if roomConfig.agents also dispatches
+    // This is more reliable than relying solely on roomConfig.agents
+    this.aiService.dispatchAgent(roomName).catch((err) => {
+      console.log('Agent dispatch (may already be in room):', err?.message);
+    });
 
     return {
       token,
