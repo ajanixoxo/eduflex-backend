@@ -34,11 +34,9 @@ export class AiProvider {
 
     const token = await this.aiService.generateLiveKitToken(user, roomName);
 
-    // Dispatch the agent to the room (for explicit dispatch mode)
-    // This is done asynchronously so it doesn't block the response
-    this.aiService.dispatchAgent(roomName).catch((err) => {
-      console.error('Failed to dispatch agent:', err);
-    });
+    // Note: Agent dispatch is handled automatically via roomConfig in the token
+    // which includes agents: [{ agentName: 'eduflex-ai-agent' }]
+    // Do NOT call dispatchAgent() here as it causes duplicate agents
 
     return {
       token,
