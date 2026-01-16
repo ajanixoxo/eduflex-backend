@@ -12,7 +12,16 @@ import compression from 'compression';
 import { Env } from './modules/shared/constants';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    // Increase body parser limit for agent image uploads (base64 images can be ~500KB+)
+    bodyParser: true,
+  });
+
+  // Configure express body parser with higher limit for image uploads
+  const expressApp = app.getHttpAdapter().getInstance();
+  const express = require('express');
+  expressApp.use(express.json({ limit: '2mb' }));
+  expressApp.use(express.urlencoded({ extended: true, limit: '2mb' }));
   app.use(compression());
   app.enableCors();
   app.setGlobalPrefix('/api-gateway/v1');
