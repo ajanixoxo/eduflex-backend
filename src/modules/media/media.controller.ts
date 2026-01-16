@@ -12,12 +12,15 @@ import {
   Delete,
   Get,
   Query,
+  Headers,
+  UnauthorizedException,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiHeader, ApiTags } from '@nestjs/swagger';
 import { MediaProvider } from './media.provider';
 import { MAX_FILE_SIZE, MediaType } from './enums';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
+  AgentUploadImageDto,
   CreateAiAvatarDto,
   CreateAiVoiceDto,
   ListAiAvatarsDto,
@@ -26,9 +29,10 @@ import {
   UpdateAiVoiceDto,
   UploadDto,
 } from './dtos';
-import { Auth } from 'src/decorators';
+import { Auth, IsPublic } from 'src/decorators';
 import { type UserDocument } from '../user/schemas';
 import { ValidateMongoIdPipe } from 'src/validations';
+import { Env } from '../shared/constants';
 
 @Controller('media')
 @ApiTags('Media Management')
@@ -148,6 +152,32 @@ export class MediaController {
     @Param('voiceId', ValidateMongoIdPipe) voiceId: string,
   ) {
     const res = await this.mediaProvider.deleteAiVoice({ user, voiceId });
+    return res;
+  }
+
+  /**
+   * Endpoint for LiveKit agent to upload AI-generated images
+   * Uploads image to Cloudinary and returns the URL
+   * Uses agent API key for authentication (no user context required)
+   */
+  @Post('agent/upload-image')
+  @IsPublic()
+  @ApiHeader({
+    name: 'X-Agent-API-Key',
+    description:
+      'Agent API Key for authentication (optional if AGENT_API_KEY not set in env)',
+    required: false,
+  })
+  async agentUploadImage(
+    @Body() body: AgentUploadImageDto,
+    @Headers('x-agent-api-key') apiKey?: string,
+  ) {
+    // Validate API key if configured
+    if ((Env as any).AGENT_API_KEY && apiKey !== (Env as any).AGENT_API_KEY) {
+      throw new UnauthorizedException('Invalid agent API key');
+    }
+
+    const res = await this.mediaProvider.agentUploadImage(body);
     return res;
   }
 }

@@ -10,6 +10,7 @@ import { v2 as cloudinary } from 'cloudinary';
 import { Env } from '../shared/constants';
 import { IApiResponseDto } from '../shared/types';
 import {
+  AgentUploadImageDto,
   CreateAiAvatarDto,
   CreateAiVoiceDto,
   ListAiAvatarsDto,
@@ -466,5 +467,62 @@ export class MediaProvider {
       message: 'User AI Voices retrieved successfully',
       data,
     };
+  }
+
+  /**
+   * Upload an AI-generated image to Cloudinary
+   * Used by the LiveKit agent to upload generated images and get a URL
+   * This endpoint does not require user authentication - uses agent API key
+   */
+  async agentUploadImage(body: AgentUploadImageDto): Promise<IApiResponseDto> {
+    try {
+      const { image_base64, prompt, room_name } = body;
+
+      // Validate base64 data
+      if (!image_base64 || image_base64.length === 0) {
+        throw new BadRequestException('image_base64 is required');
+      }
+
+      // Determine folder based on room_name or use default
+      let folder = 'eduflexai/agent/generated_images';
+      if (room_name) {
+        // Extract course ID from room_name if possible
+        const courseMatch = room_name.match(/course-([a-f0-9]+)/i);
+        if (courseMatch) {
+          folder = `eduflexai/courses/${courseMatch[1]}/ai_images`;
+        }
+      }
+
+      // Upload to Cloudinary
+      // The image_base64 should be raw base64, we add the data URI prefix
+      const dataUri = `data:image/png;base64,${image_base64}`;
+
+      const uploadResult = await cloudinary.uploader.upload(dataUri, {
+        folder,
+        resource_type: 'image',
+        // Add metadata
+        context: prompt ? `prompt=${prompt.substring(0, 500)}` : undefined,
+      });
+
+      return {
+        message: 'Image uploaded successfully',
+        data: {
+          url: uploadResult.secure_url,
+          public_id: uploadResult.public_id,
+          width: uploadResult.width,
+          height: uploadResult.height,
+          format: uploadResult.format,
+          bytes: uploadResult.bytes,
+          prompt: prompt,
+        },
+      };
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+
+      console.error('Agent image upload error:', error);
+      throw new InternalServerErrorException(
+        error?.message ?? 'Failed to upload agent image',
+      );
+    }
   }
 }
