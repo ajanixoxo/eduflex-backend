@@ -3,7 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { AccessToken, VideoGrant } from 'livekit-server-sdk';
+import { AccessToken, VideoGrant, AgentDispatchClient } from 'livekit-server-sdk';
 import { RoomConfiguration } from '@livekit/protocol';
 import { Env } from '../shared/constants';
 import { CourseService } from '../course/course.service';
@@ -96,6 +96,31 @@ export class AiService {
     });
 
     return await at.toJwt();
+  }
+
+  /**
+   * Dispatch the AI agent to a room
+   * This is needed for agents using explicit dispatch mode (@server.rtc_session)
+   */
+  async dispatchAgent(roomName: string): Promise<void> {
+    if (!Env.LIVEKIT_API_KEY || !Env.LIVEKIT_API_SECRET || !Env.LIVEKIT_URL) {
+      console.error('LiveKit credentials not configured for agent dispatch');
+      return;
+    }
+
+    try {
+      const client = new AgentDispatchClient(
+        Env.LIVEKIT_URL,
+        Env.LIVEKIT_API_KEY,
+        Env.LIVEKIT_API_SECRET,
+      );
+
+      await client.createDispatch(roomName, 'eduflex-ai-agent');
+      console.log(`Agent dispatched to room: ${roomName}`);
+    } catch (error) {
+      // Log but don't throw - agent might already be dispatched or room config handles it
+      console.error('Agent dispatch error (may be expected):', error?.message);
+    }
   }
 
   /**

@@ -34,6 +34,12 @@ export class AiProvider {
 
     const token = await this.aiService.generateLiveKitToken(user, roomName);
 
+    // Dispatch the agent to the room (for explicit dispatch mode)
+    // This is done asynchronously so it doesn't block the response
+    this.aiService.dispatchAgent(roomName).catch((err) => {
+      console.error('Failed to dispatch agent:', err);
+    });
+
     return {
       token,
       room: roomName,
