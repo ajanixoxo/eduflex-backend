@@ -645,4 +645,78 @@ export class ChatProvider {
       throw new BadRequestException(`Invalid speaker_type: ${speaker_type}`);
     }
   }
+
+  /**
+   * Get conversation history for a room
+   * Used by LiveKit agent to load previous messages when reconnecting
+   */
+  async getAgentConversationHistory(
+    roomName: string,
+    limit: number = 10,
+  ): Promise<IApiResponseDto> {
+    // Parse room_name to extract course/module/lesson
+    const parsed = parseRoomName(roomName);
+
+    if (!parsed.isValid) {
+      return {
+        message: 'Invalid room name format',
+        data: { messages: [] },
+      };
+    }
+
+    const { course_id, module_number, lesson_number } = parsed;
+
+    try {
+      // Get recent messages for this specific lesson
+      const messages = await this.chatService.chatModel
+        .find({
+          course: course_id,
+          module_number,
+          lesson_number,
+        })
+        .sort({ created_at: -1 })
+        .limit(limit)
+        .lean();
+
+      // Format messages for the agent
+      const formattedMessages: Array<{
+        speaker_type: string;
+        text: string;
+        timestamp: Date;
+      }> = [];
+
+      for (const msg of messages.reverse()) {
+        // Add user message
+        if (msg.user_message?.message && msg.user_message.message !== '[Pending]') {
+          formattedMessages.push({
+            speaker_type: 'user',
+            text: msg.user_message.message,
+            timestamp: msg.created_at,
+          });
+        }
+
+        // Add AI reply
+        if (msg.ai_reply?.message && msg.ai_reply.message !== '[Pending]') {
+          formattedMessages.push({
+            speaker_type: 'ai',
+            text: msg.ai_reply.message,
+            timestamp: msg.created_at,
+          });
+        }
+      }
+
+      return {
+        message: 'Conversation history retrieved successfully',
+        data: {
+          messages: formattedMessages,
+          count: formattedMessages.length,
+        },
+      };
+    } catch (error) {
+      return {
+        message: 'Failed to retrieve conversation history',
+        data: { messages: [] },
+      };
+    }
+  }
 }

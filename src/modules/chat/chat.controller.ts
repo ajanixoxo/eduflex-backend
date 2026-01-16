@@ -4,6 +4,7 @@ import {
   Get,
   Post,
   Query,
+  Param,
   Headers,
   UnauthorizedException,
   UseInterceptors,
@@ -171,6 +172,35 @@ export class ChatController {
     }
 
     const data = await this.chatProvider.saveAgentTranscript(body);
+    return data;
+  }
+
+  /**
+   * Endpoint for LiveKit agent to get conversation history
+   * Returns recent messages for a room to provide context when agent reconnects
+   */
+  @Get('agent/history/:roomName')
+  @IsPublic()
+  @ApiHeader({
+    name: 'X-Agent-API-Key',
+    description:
+      'Agent API Key for authentication (optional if AGENT_API_KEY not set in env)',
+    required: false,
+  })
+  async agentGetHistory(
+    @Param('roomName') roomName: string,
+    @Query('limit') limit?: string,
+    @Headers('x-agent-api-key') apiKey?: string,
+  ) {
+    // Validate API key if configured
+    if ((Env as any).AGENT_API_KEY && apiKey !== (Env as any).AGENT_API_KEY) {
+      throw new UnauthorizedException('Invalid agent API key');
+    }
+
+    const data = await this.chatProvider.getAgentConversationHistory(
+      roomName,
+      limit ? parseInt(limit, 10) : 10,
+    );
     return data;
   }
 }
