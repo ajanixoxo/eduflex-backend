@@ -520,6 +520,7 @@ export class ChatProvider {
       message_id,
       language,
       timestamp,
+      images,
     } = body;
 
     // Parse room_name to extract course/module/lesson
@@ -610,11 +611,19 @@ export class ChatProvider {
         throw new NotFoundException('Chat message not found');
       }
 
+      // Map images from DTO format to schema format
+      const mappedImages = images?.map((img) => ({
+        url: img.url,
+        thumbnail_url: img.url, // Use the same URL as thumbnail for base64 images
+        // Note: media_id is optional and not provided by agent
+      }));
+
       // Update the AI reply
       chatMessage.ai_reply = {
         sender: ChatSender.AI,
         message: text,
         is_error: false,
+        images: mappedImages && mappedImages.length > 0 ? mappedImages : undefined,
         metadata: {
           room_name,
           language,
@@ -629,6 +638,7 @@ export class ChatProvider {
         data: {
           message_id: message_id,
           ai_response: text,
+          images: mappedImages,
         },
       };
     } else {
