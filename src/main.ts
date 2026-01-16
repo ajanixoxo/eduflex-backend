@@ -23,7 +23,12 @@ async function bootstrap() {
   expressApp.use(express.json({ limit: '2mb' }));
   expressApp.use(express.urlencoded({ extended: true, limit: '2mb' }));
   app.use(compression());
-  app.enableCors();
+  app.enableCors({
+    origin: true, // Allow all origins (or specify: ['https://eduflex.funtech.dev'])
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Agent-API-Key'],
+    credentials: true,
+  });
   app.setGlobalPrefix('/api-gateway/v1');
   app.useGlobalPipes(
     new ValidationPipe({
