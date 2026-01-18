@@ -11,6 +11,7 @@ import { Env } from '../shared/constants';
 import { IApiResponseDto } from '../shared/types';
 import {
   AgentUploadImageDto,
+  AgentUploadVideoDto,
   CreateAiAvatarDto,
   CreateAiVoiceDto,
   ListAiAvatarsDto,
@@ -522,6 +523,72 @@ export class MediaProvider {
       console.error('Agent image upload error:', error);
       throw new InternalServerErrorException(
         error?.message ?? 'Failed to upload agent image',
+      );
+    }
+  }
+
+  async agentUploadVideo(body: AgentUploadVideoDto): Promise<IApiResponseDto> {
+    try {
+      const { video_base64, title, topic, duration, room_name, job_id } = body;
+
+      // Validate base64 data
+      if (!video_base64 || video_base64.length === 0) {
+        throw new BadRequestException('video_base64 is required');
+      }
+
+      // Determine folder based on room_name or use default
+      let folder = 'eduflexai/agent/generated_videos';
+      if (room_name) {
+        // Extract course ID from room_name if possible
+        const courseMatch = room_name.match(/course-([a-f0-9]+)/i);
+        if (courseMatch) {
+          folder = `eduflexai/courses/${courseMatch[1]}/ai_videos`;
+        }
+      }
+
+      // Upload to Cloudinary
+      // The video_base64 should be raw base64, we add the data URI prefix
+      const dataUri = `data:video/mp4;base64,${video_base64}`;
+
+      const uploadResult = await cloudinary.uploader.upload(dataUri, {
+        folder,
+        resource_type: 'video',
+        // Add metadata
+        context: topic ? `topic=${topic.substring(0, 500)}` : undefined,
+      });
+
+      // Generate thumbnail URL from Cloudinary video
+      const thumbnailUrl = cloudinary.url(uploadResult.public_id, {
+        resource_type: 'video',
+        format: 'jpg',
+        transformation: [
+          { width: 640, height: 360, crop: 'fill' },
+          { start_offset: '0' }
+        ]
+      });
+
+      return {
+        message: 'Video uploaded successfully',
+        data: {
+          url: uploadResult.secure_url,
+          thumbnail_url: thumbnailUrl,
+          public_id: uploadResult.public_id,
+          duration: uploadResult.duration || duration,
+          format: uploadResult.format,
+          bytes: uploadResult.bytes,
+          width: uploadResult.width,
+          height: uploadResult.height,
+          title: title,
+          topic: topic,
+          job_id: job_id,
+        },
+      };
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+
+      console.error('Agent video upload error:', error);
+      throw new InternalServerErrorException(
+        error?.message ?? 'Failed to upload agent video',
       );
     }
   }

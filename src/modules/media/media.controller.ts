@@ -21,6 +21,7 @@ import { MAX_FILE_SIZE, MediaType } from './enums';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   AgentUploadImageDto,
+  AgentUploadVideoDto,
   CreateAiAvatarDto,
   CreateAiVoiceDto,
   ListAiAvatarsDto,
@@ -178,6 +179,32 @@ export class MediaController {
     }
 
     const res = await this.mediaProvider.agentUploadImage(body);
+    return res;
+  }
+
+  /**
+   * Endpoint for LiveKit agent to upload AI-generated videos
+   * Uploads video to Cloudinary and returns the URL
+   * Uses agent API key for authentication (no user context required)
+   */
+  @Post('agent/upload-video')
+  @IsPublic()
+  @ApiHeader({
+    name: 'X-Agent-API-Key',
+    description:
+      'Agent API Key for authentication (optional if AGENT_API_KEY not set in env)',
+    required: false,
+  })
+  async agentUploadVideo(
+    @Body() body: AgentUploadVideoDto,
+    @Headers('x-agent-api-key') apiKey?: string,
+  ) {
+    // Validate API key if configured
+    if ((Env as any).AGENT_API_KEY && apiKey !== (Env as any).AGENT_API_KEY) {
+      throw new UnauthorizedException('Invalid agent API key');
+    }
+
+    const res = await this.mediaProvider.agentUploadVideo(body);
     return res;
   }
 }
