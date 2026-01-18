@@ -8,6 +8,18 @@ import {
 } from 'src/modules/media/schemas/media.schema';
 import { AIMediaOwner } from '../enums';
 
+export enum VoiceType {
+  SYSTEM = 'system',
+  CLONED = 'cloned',
+}
+
+export enum CloneStatus {
+  PENDING = 'pending',
+  PROCESSING = 'processing',
+  READY = 'ready',
+  FAILED = 'failed',
+}
+
 @Schema({
   timestamps: {
     createdAt: 'created_at',
@@ -18,16 +30,16 @@ export class AIVoice extends TimestampMixin {
   @Prop({
     type: MongooseSchema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    required: false,  // Not required for system voices
   })
-  user: UserDocument;
+  user?: UserDocument;
 
   @Prop({
     type: MongooseSchema.Types.ObjectId,
     ref: 'Media',
-    required: true,
+    required: false,  // Not required for system voices
   })
-  media: MediaDocument;
+  media?: MediaDocument;
 
   @Prop({
     type: String,
@@ -45,6 +57,27 @@ export class AIVoice extends TimestampMixin {
 
   @Prop({ trim: true })
   description?: string;
+
+  // Voice ID for TTS service (e.g., "guy", "ryan", "thomas" for system, "xtts_abc123" for cloned)
+  @Prop({ required: true, trim: true, unique: true })
+  voice_id: string;
+
+  // Type of voice: system (Edge TTS) or cloned (XTTS)
+  @Prop({
+    type: String,
+    enum: Object.values(VoiceType),
+    required: true,
+    default: VoiceType.CLONED,
+  })
+  voice_type: VoiceType;
+
+  // Cloning status for cloned voices
+  @Prop({
+    type: String,
+    enum: Object.values(CloneStatus),
+    default: CloneStatus.READY,
+  })
+  clone_status?: CloneStatus;
 }
 
 export const AIVoiceSchema = SchemaFactory.createForClass(AIVoice);

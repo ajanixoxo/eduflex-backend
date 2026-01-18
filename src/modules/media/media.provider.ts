@@ -10,8 +10,6 @@ import { v2 as cloudinary } from 'cloudinary';
 import { Env } from '../shared/constants';
 import { IApiResponseDto } from '../shared/types';
 import {
-  AgentUploadImageDto,
-  AgentUploadVideoDto,
   CreateAiAvatarDto,
   CreateAiVoiceDto,
   ListAiAvatarsDto,
@@ -19,10 +17,14 @@ import {
   UpdateAiAvatarDto,
   UpdateAiVoiceDto,
   UploadDto,
+  CloneVoiceDto,
 } from './dtos';
 import { UserDocument } from '../user/schemas';
 import { UserTypes } from '../user/enums';
 import { AIMediaOwner, MediaType } from './enums';
+import { VoiceType, CloneStatus } from './schemas/ai-voice.schema';
+import { ConfigService } from '@nestjs/config';
+import axios from 'axios';
 @Injectable()
 export class MediaProvider {
   constructor(private readonly mediaService: MediaService) {
@@ -471,124 +473,88 @@ export class MediaProvider {
   }
 
   /**
-   * Upload an AI-generated image to Cloudinary
-   * Used by the LiveKit agent to upload generated images and get a URL
-   * This endpoint does not require user authentication - uses agent API key
+   * Clone a voice using XTTS on the AI pod
+   * 1. Get uploaded media (audio file from Cloudinary)
+   * 2. Send to AI pod /clone endpoint
+   * 3. Create AIVoice record with returned voice_id
    */
-  async agentUploadImage(body: AgentUploadImageDto): Promise<IApiResponseDto> {
+  async cloneVoice({
+    user,
+    body,
+  }: {
+    user: UserDocument;
+    body: CloneVoiceDto;
+  }): Promise<IApiResponseDto> {
     try {
-      const { image_base64, prompt, room_name } = body;
+      // 1. Get the uploaded media
+      const media = await this.mediaService.getMedia({
+        _id: body.media_id,
+        user: user._id,
+      });
 
-      // Validate base64 data
-      if (!image_base64 || image_base64.length === 0) {
-        throw new BadRequestException('image_base64 is required');
+      if (!media) {
+        throw new NotFoundException('Uploaded media not found');
       }
 
-      // Determine folder based on room_name or use default
-      let folder = 'eduflexai/agent/generated_images';
-      if (room_name) {
-        // Extract course ID from room_name if possible
-        const courseMatch = room_name.match(/course-([a-f0-9]+)/i);
-        if (courseMatch) {
-          folder = `eduflexai/courses/${courseMatch[1]}/ai_images`;
-        }
+      if (!media.mimetype?.startsWith('audio/')) {
+        throw new BadRequestException(
+          'Please select an audio file for voice cloning',
+        );
       }
 
-      // Upload to Cloudinary
-      // The image_base64 should be raw base64, we add the data URI prefix
-      const dataUri = `data:image/png;base64,${image_base64}`;
+      // 2. Call AI Pod XTTS clone endpoint
+      const xttsUrl = Env.XTTS_URL ?? 'http://localhost:9201';
+      let cloneResponse: { data: { voice_id: string; status: string } };
 
-      const uploadResult = await cloudinary.uploader.upload(dataUri, {
-        folder,
-        resource_type: 'image',
-        // Add metadata
-        context: prompt ? `prompt=${prompt.substring(0, 500)}` : undefined,
+      try {
+        cloneResponse = await axios.post(`${xttsUrl}/clone`, {
+          audio_url: media.url, // Cloudinary URL
+          name: body.name,
+        }, {
+          timeout: 120000, // 2 minute timeout for voice cloning
+        });
+      } catch (axiosError: any) {
+        const errorMessage = axiosError.response?.data?.detail || axiosError.message;
+        throw new InternalServerErrorException(
+          `Voice cloning service error: ${errorMessage}`,
+        );
+      }
+
+      const { voice_id, status } = cloneResponse.data;
+
+      if (!voice_id) {
+        throw new InternalServerErrorException(
+          'Voice cloning failed: No voice_id returned',
+        );
+      }
+
+      // 3. Create AIVoice record with the cloned voice_id
+      const aiVoice = await this.mediaService.createAIVoice({
+        user,
+        media,
+        name: body.name,
+        description: `Cloned voice from uploaded audio`,
+        owner: AIMediaOwner.USER,
+        voice_id,
+        voice_type: VoiceType.CLONED,
+        clone_status: status === 'ready' ? CloneStatus.READY : CloneStatus.PROCESSING,
       });
 
       return {
-        message: 'Image uploaded successfully',
-        data: {
-          url: uploadResult.secure_url,
-          public_id: uploadResult.public_id,
-          width: uploadResult.width,
-          height: uploadResult.height,
-          format: uploadResult.format,
-          bytes: uploadResult.bytes,
-          prompt: prompt,
-        },
+        message: 'Voice cloned successfully',
+        data: aiVoice,
       };
     } catch (error) {
-      if (error instanceof BadRequestException) throw error;
-
-      console.error('Agent image upload error:', error);
-      throw new InternalServerErrorException(
-        error?.message ?? 'Failed to upload agent image',
-      );
-    }
-  }
-
-  async agentUploadVideo(body: AgentUploadVideoDto): Promise<IApiResponseDto> {
-    try {
-      const { video_base64, title, topic, duration, room_name, job_id } = body;
-
-      // Validate base64 data
-      if (!video_base64 || video_base64.length === 0) {
-        throw new BadRequestException('video_base64 is required');
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException ||
+        error instanceof InternalServerErrorException
+      ) {
+        throw error;
       }
 
-      // Determine folder based on room_name or use default
-      let folder = 'eduflexai/agent/generated_videos';
-      if (room_name) {
-        // Extract course ID from room_name if possible
-        const courseMatch = room_name.match(/course-([a-f0-9]+)/i);
-        if (courseMatch) {
-          folder = `eduflexai/courses/${courseMatch[1]}/ai_videos`;
-        }
-      }
-
-      // Upload to Cloudinary
-      // The video_base64 should be raw base64, we add the data URI prefix
-      const dataUri = `data:video/mp4;base64,${video_base64}`;
-
-      const uploadResult = await cloudinary.uploader.upload(dataUri, {
-        folder,
-        resource_type: 'video',
-        // Add metadata
-        context: topic ? `topic=${topic.substring(0, 500)}` : undefined,
-      });
-
-      // Generate thumbnail URL from Cloudinary video
-      const thumbnailUrl = cloudinary.url(uploadResult.public_id, {
-        resource_type: 'video',
-        format: 'jpg',
-        transformation: [
-          { width: 640, height: 360, crop: 'fill' },
-          { start_offset: '0' }
-        ]
-      });
-
-      return {
-        message: 'Video uploaded successfully',
-        data: {
-          url: uploadResult.secure_url,
-          thumbnail_url: thumbnailUrl,
-          public_id: uploadResult.public_id,
-          duration: uploadResult.duration || duration,
-          format: uploadResult.format,
-          bytes: uploadResult.bytes,
-          width: uploadResult.width,
-          height: uploadResult.height,
-          title: title,
-          topic: topic,
-          job_id: job_id,
-        },
-      };
-    } catch (error) {
-      if (error instanceof BadRequestException) throw error;
-
-      console.error('Agent video upload error:', error);
       throw new InternalServerErrorException(
-        error?.message ?? 'Failed to upload agent video',
+        error?.message ?? 'Failed to clone voice',
       );
     }
   }
