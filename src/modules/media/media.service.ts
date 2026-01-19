@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import {
   AIAvatar,
@@ -7,13 +7,49 @@ import {
   AIVoiceDocument,
   Media,
   MediaDocument,
+  VoiceType,
+  CloneStatus,
 } from './schemas';
 import { FilterQuery, Model } from 'mongoose';
 import { PaginationService } from '../shared/services';
 import { ListAiAvatarsDto, ListAiVoicesDto, ListMediaDto } from './dtos';
+import { AIMediaOwner } from './enums';
+
+// Edge TTS System Voices to seed on startup
+const SYSTEM_VOICES = [
+  {
+    name: 'Professor Alex',
+    voice_id: 'guy',
+    description: 'Deep, professional US male voice',
+    accent: 'American',
+    owner: AIMediaOwner.SYSTEM,
+    voice_type: VoiceType.SYSTEM,
+    clone_status: CloneStatus.READY,
+  },
+  {
+    name: 'Dr. Ryan',
+    voice_id: 'ryan',
+    description: 'British professional male voice',
+    accent: 'British',
+    owner: AIMediaOwner.SYSTEM,
+    voice_type: VoiceType.SYSTEM,
+    clone_status: CloneStatus.READY,
+  },
+  {
+    name: 'Mr. Thomas',
+    voice_id: 'thomas',
+    description: 'British warm male voice',
+    accent: 'British',
+    owner: AIMediaOwner.SYSTEM,
+    voice_type: VoiceType.SYSTEM,
+    clone_status: CloneStatus.READY,
+  },
+];
 
 @Injectable()
-export class MediaService {
+export class MediaService implements OnModuleInit {
+  private readonly logger = new Logger(MediaService.name);
+
   constructor(
     @InjectModel(Media.name)
     private readonly _mediaModel: Model<MediaDocument>,
@@ -23,6 +59,25 @@ export class MediaService {
     private readonly _aiVoiceModel: Model<AIVoiceDocument>,
     private readonly paginationService: PaginationService,
   ) {}
+
+  async onModuleInit() {
+    await this.seedSystemVoices();
+  }
+
+  private async seedSystemVoices() {
+    try {
+      for (const voice of SYSTEM_VOICES) {
+        const existing = await this._aiVoiceModel.findOne({ voice_id: voice.voice_id });
+        if (!existing) {
+          await this._aiVoiceModel.create(voice);
+          this.logger.log(`Created system voice: ${voice.name} (${voice.voice_id})`);
+        }
+      }
+      this.logger.log('System voices seeding completed');
+    } catch (error) {
+      this.logger.error('Failed to seed system voices:', error);
+    }
+  }
 
   get mediaModel(): Model<MediaDocument> {
     return this._mediaModel;
