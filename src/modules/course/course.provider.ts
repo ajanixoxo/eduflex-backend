@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { CourseService } from './course.service';
@@ -35,6 +36,7 @@ import { AIMediaOwner } from '../media/enums';
 
 @Injectable()
 export class CourseProvider {
+  private readonly logger = new Logger(CourseProvider.name);
   protected client: AxiosInstance;
   constructor(
     private readonly courseService: CourseService,
@@ -51,73 +53,89 @@ export class CourseProvider {
     user: UserDocument;
     body: CreateCourseDto;
   }): Promise<IApiResponseDto> {
-    const aiVoice = await this.mediaService.getAIVoice({ _id: body.ai_voice });
-    const aiAvatar = await this.mediaService.getAIAvatar({
-      _id: body.ai_avatar,
-    });
+    try {
+      this.logger.log(`Creating course for user ${user._id} with voice ${body.ai_voice} and avatar ${body.ai_avatar}`);
 
-    if (!aiVoice) {
-      throw new NotFoundException('AI Voice not found');
-    }
-    if (!aiAvatar) {
-      throw new NotFoundException('AI Avatar not found');
-    }
+      const aiVoice = await this.mediaService.getAIVoice({ _id: body.ai_voice });
+      const aiAvatar = await this.mediaService.getAIAvatar({
+        _id: body.ai_avatar,
+      });
 
-    const isVoiceOwnerValid =
-      aiVoice.owner === AIMediaOwner.SYSTEM ||
-      (aiVoice.user && aiVoice.user._id.equals(user._id));
-    const isAvatarOwnerValid =
-      aiAvatar.owner === AIMediaOwner.SYSTEM ||
-      (aiAvatar.user && aiAvatar.user._id.equals(user._id));
+      this.logger.log(`aiVoice found: ${!!aiVoice}, owner: ${aiVoice?.owner}, user: ${aiVoice?.user?._id}`);
+      this.logger.log(`aiAvatar found: ${!!aiAvatar}, owner: ${aiAvatar?.owner}, user: ${aiAvatar?.user?._id}`);
 
-    if (!isVoiceOwnerValid) {
-      throw new BadRequestException('You cannot use this AI Voice');
-    }
-    if (!isAvatarOwnerValid) {
-      throw new BadRequestException('You cannot use this AI Avatar');
-    }
+      if (!aiVoice) {
+        throw new NotFoundException('AI Voice not found');
+      }
+      if (!aiAvatar) {
+        throw new NotFoundException('AI Avatar not found');
+      }
 
-    const generated = await this.courseService.generateCourseOutline({
-      payload: body,
-    });
+      const isVoiceOwnerValid =
+        aiVoice.owner === AIMediaOwner.SYSTEM ||
+        (aiVoice.user && aiVoice.user._id.equals(user._id));
+      const isAvatarOwnerValid =
+        aiAvatar.owner === AIMediaOwner.SYSTEM ||
+        (aiAvatar.user && aiAvatar.user._id.equals(user._id));
 
-    const courseData = {
-      user: user._id,
-      topic: body.topic,
-      reason: body.reason,
-      title: generated.title,
-      estimated_duration: generated.estimated_duration,
-      total_lessons: generated.total_lessons,
-      time_per_session: generated.time_per_session,
-      language: body.language,
-      experience_level: body.experience_level,
-      teaching_style: body.teaching_style,
-      learning_preference: body.learning_preference,
-      time_dedication: body.time_dedication,
-      target_completion: body.target_completion,
-      course_format_addons: body.course_format_addons || [],
-      modules: generated.modules.map((m) => ({
-        title: m.title,
-        module_number: m.module_number,
-        status: m.status || 'pending',
-        lessons: m.lessons.map((l) => ({
-          lesson_number: l.lesson_number,
-          title: l.title,
-          type: l.type,
-          resources: l.resources || [],
+      this.logger.log(`Voice owner valid: ${isVoiceOwnerValid}, Avatar owner valid: ${isAvatarOwnerValid}`);
+
+      if (!isVoiceOwnerValid) {
+        throw new BadRequestException('You cannot use this AI Voice');
+      }
+      if (!isAvatarOwnerValid) {
+        throw new BadRequestException('You cannot use this AI Avatar');
+      }
+
+      this.logger.log('Calling generateCourseOutline...');
+      const generated = await this.courseService.generateCourseOutline({
+        payload: body,
+      });
+      this.logger.log('Course outline generated successfully');
+
+      const courseData = {
+        user: user._id,
+        topic: body.topic,
+        reason: body.reason,
+        title: generated.title,
+        estimated_duration: generated.estimated_duration,
+        total_lessons: generated.total_lessons,
+        time_per_session: generated.time_per_session,
+        language: body.language,
+        experience_level: body.experience_level,
+        teaching_style: body.teaching_style,
+        learning_preference: body.learning_preference,
+        time_dedication: body.time_dedication,
+        target_completion: body.target_completion,
+        course_format_addons: body.course_format_addons || [],
+        modules: generated.modules.map((m) => ({
+          title: m.title,
+          module_number: m.module_number,
+          status: m.status || 'pending',
+          lessons: m.lessons.map((l) => ({
+            lesson_number: l.lesson_number,
+            title: l.title,
+            type: l.type,
+            resources: l.resources || [],
+          })),
         })),
-      })),
-      ai_voice: aiVoice._id,
-      ai_avatar: aiAvatar._id,
-    };
+        ai_voice: aiVoice._id,
+        ai_avatar: aiAvatar._id,
+      };
 
-    const createdCourse =
-      await this.courseService.courseModel.create(courseData);
+      const createdCourse =
+        await this.courseService.courseModel.create(courseData);
 
-    return {
-      message: 'Course created successfully',
-      data: createdCourse,
-    };
+      this.logger.log(`Course created successfully: ${createdCourse._id}`);
+
+      return {
+        message: 'Course created successfully',
+        data: createdCourse,
+      };
+    } catch (error: any) {
+      this.logger.error(`Failed to create course: ${error.message}`, error.stack);
+      throw error;
+    }
   }
   async changeCourseAIAvatar({
     user,
