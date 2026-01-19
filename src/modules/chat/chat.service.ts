@@ -76,6 +76,24 @@ export class ChatService {
         throw new Error('AI chat agent returned an invalid response');
       }
     } catch (error: any) {
+      // Log the error for debugging
+      console.error('AI Chat Service Error:', {
+        url: Env.AI_CHAT_URL,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message,
+        code: error.code,
+      });
+
+      // Provide more specific error messages
+      if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+        throw new Error(`AI chat service unavailable. Please check AI_CHAT_URL configuration (${Env.AI_CHAT_URL})`);
+      }
+      if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
+        throw new Error('AI chat service timed out. Please try again.');
+      }
+
       const message =
         error.response?.data?.message ||
         error.response?.data?.detail ||
