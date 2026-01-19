@@ -269,18 +269,19 @@ export class AiService {
     const voiceId = voice.voice_id || 'guy'; // Default to Professor Alex
 
     // Create a simple 2-scene script for a 10-15 second preview
+    // Keep prompts simple and achievable for better video quality
     const script = {
       title: `Introduction to ${dto.target_concept}`,
       total_scenes: 2,
       scenes: [
         {
           scene_number: 1,
-          video_prompt: `Educational visual introduction to ${dto.target_concept}, professional presentation style, clean modern design, soft lighting`,
+          video_prompt: `A book opening on a desk, natural lighting, wooden table`,
           voiceover: `Welcome! Let's explore ${dto.target_concept} together. This course will guide you through the fundamentals.`,
         },
         {
           scene_number: 2,
-          video_prompt: `Educational diagram or illustration related to ${dto.target_concept}, clear visuals, engaging presentation, professional quality`,
+          video_prompt: `Colorful sticky notes on a whiteboard, office setting, daylight`,
           voiceover: `By the end, you'll have a solid understanding of the key concepts. Let's get started!`,
         },
       ],
