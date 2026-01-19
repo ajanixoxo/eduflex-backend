@@ -7,6 +7,7 @@ import {
 import { HttpService } from '@nestjs/axios';
 import { AccessToken, VideoGrant, AgentDispatchClient } from 'livekit-server-sdk';
 import { RoomConfiguration } from '@livekit/protocol';
+import { v2 as cloudinary } from 'cloudinary';
 import { Env } from '../shared/constants';
 import { CourseService } from '../course/course.service';
 import { MediaService } from '../media/media.service';
@@ -25,7 +26,14 @@ export class AiService {
     private readonly courseService: CourseService,
     private readonly mediaService: MediaService,
     private readonly httpService: HttpService,
-  ) {}
+  ) {
+    // Configure cloudinary for video uploads
+    cloudinary.config({
+      api_key: Env.CLOUDINARY_API_KEY,
+      cloud_name: Env.CLOUDINARY_CLOUD_NAME,
+      api_secret: Env.CLOUDINARY_API_SECRET,
+    });
+  }
 
   generateRoomName(
     courseId: string,
@@ -317,12 +325,40 @@ export class AiService {
         this.logger.log(`Video job ${jobId} status: ${status.status}, progress: ${status.progress}%`);
 
         if (status.status === 'completed') {
-          // Get the video URL from the result
-          const videoUrl = status.result?.video_url || status.result?.video_path;
+          // Get the download path from the result (e.g., /video/download/{job_id})
+          const downloadPath = status.result?.video_url || status.result?.video_path;
 
-          if (!videoUrl) {
-            throw new BadRequestException('Video generation completed but no URL returned');
+          if (!downloadPath) {
+            throw new BadRequestException('Video generation completed but no download path returned');
           }
+
+          // Fetch the video from the pod's download endpoint
+          this.logger.log(`Fetching video from pod: ${downloadPath}`);
+          const videoGenUrl = (Env as any).VIDEO_GEN_URL || 'http://localhost:9400';
+          const fullDownloadUrl = downloadPath.startsWith('/')
+            ? `${videoGenUrl}${downloadPath}`
+            : downloadPath;
+
+          const videoResponse = await firstValueFrom(
+            this.httpService.get(fullDownloadUrl, {
+              responseType: 'arraybuffer',
+              timeout: 60000, // 60 second timeout for download
+            }),
+          );
+
+          // Upload to Cloudinary
+          this.logger.log(`Uploading video to Cloudinary for user: ${user._id}`);
+          const base64Video = Buffer.from(videoResponse.data).toString('base64');
+          const cloudinaryResult = await cloudinary.uploader.upload(
+            `data:video/mp4;base64,${base64Video}`,
+            {
+              folder: `eduflexai/${user._id}/preview_videos`,
+              resource_type: 'video',
+              public_id: jobId,
+            },
+          );
+
+          this.logger.log(`Video uploaded to Cloudinary: ${cloudinaryResult.secure_url}`);
 
           // Build transcript from script
           const transcript = script.scenes.map((scene, index) => ({
@@ -331,7 +367,7 @@ export class AiService {
           }));
 
           return {
-            video_url: videoUrl,
+            video_url: cloudinaryResult.secure_url,
             duration_seconds: status.result?.duration || 15,
             transcript,
           };
