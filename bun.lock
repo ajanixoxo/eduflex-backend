@@ -1,11 +1,13 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "eduflex-api",
       "dependencies": {
         "@livekit/agents": "^1.0.27",
         "@livekit/agents-plugin-silero": "^1.0.27",
+        "@nestjs/axios": "^4.0.1",
         "@nestjs/cache-manager": "^3.0.1",
         "@nestjs/common": "^11.0.1",
         "@nestjs/config": "^4.0.2",
@@ -376,6 +378,8 @@
     "@mongodb-js/saslprep": ["@mongodb-js/saslprep@1.4.0", "", { "dependencies": { "sparse-bitfield": "^3.0.3" } }, "sha512-ZHzx7Z3rdlWL1mECydvpryWN/ETXJiCxdgQKTAH+djzIPe77HdnSizKBDi1TVDXZjXyOj2IqEG/vPw71ULF06w=="],
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@0.2.12", "", { "dependencies": { "@emnapi/core": "^1.4.3", "@emnapi/runtime": "^1.4.3", "@tybys/wasm-util": "^0.10.0" } }, "sha512-ZVWUcfwY4E/yPitQJl481FjFo3K22D6qF0DuFH6Y/nbnE11GY5uguDxZMGXPQ8WQ0128MXQD7TnfHyK4oWoIJQ=="],
+
+    "@nestjs/axios": ["@nestjs/axios@4.0.1", "", { "peerDependencies": { "@nestjs/common": "^10.0.0 || ^11.0.0", "axios": "^1.3.1", "rxjs": "^7.0.0" } }, "sha512-68pFJgu+/AZbWkGu65Z3r55bTsCPlgyKaV4BSG8yUAD72q1PPuyVRgUwFv6BxdnibTUHlyxm06FmYWNC+bjN7A=="],
 
     "@nestjs/cache-manager": ["@nestjs/cache-manager@3.0.1", "", { "peerDependencies": { "@nestjs/common": "^9.0.0 || ^10.0.0 || ^11.0.0", "@nestjs/core": "^9.0.0 || ^10.0.0 || ^11.0.0", "cache-manager": ">=6", "keyv": ">=5", "rxjs": "^7.8.1" } }, "sha512-4UxTnR0fsmKL5YDalU2eLFVnL+OBebWUpX+hEduKGncrVKH4PPNoiRn1kXyOCjmzb0UvWgqubpssNouc8e0MCw=="],
 
