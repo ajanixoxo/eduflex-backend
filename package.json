@@ -22,6 +22,7 @@
   "dependencies": {
     "@livekit/agents": "^1.0.27",
     "@livekit/agents-plugin-silero": "^1.0.27",
+    "@nestjs/axios": "^4.0.1",
     "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
