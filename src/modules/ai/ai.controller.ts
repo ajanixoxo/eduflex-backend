@@ -7,9 +7,10 @@ import {
   Headers,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags, ApiHeader } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiHeader, ApiOperation } from '@nestjs/swagger';
 import { AiProvider } from './ai.provider';
-import { RoomCredentialsDto, RoomContextDto } from './dtos';
+import { AiService } from './ai.service';
+import { RoomCredentialsDto, RoomContextDto, GenerateVideoDto } from './dtos';
 import { Auth, IsPublic } from 'src/decorators';
 import { Env } from '../shared/constants';
 import type { UserDocument } from '../user/schemas';
@@ -18,7 +19,10 @@ import type { UserDocument } from '../user/schemas';
 @ApiTags('AI')
 @ApiBearerAuth()
 export class AiController {
-  constructor(private readonly aiProvider: AiProvider) {}
+  constructor(
+    private readonly aiProvider: AiProvider,
+    private readonly aiService: AiService,
+  ) {}
 
   @Get('room-credentials')
   async getRoomCredentials(
@@ -60,6 +64,26 @@ export class AiController {
     return {
       message: 'Room context retrieved successfully',
       data: context,
+    };
+  }
+
+  /**
+   * Generate a preview video for a course concept
+   * This is a blocking endpoint that waits for video generation to complete
+   */
+  @Post('video/generate')
+  @ApiOperation({
+    summary: 'Generate preview video',
+    description: 'Generates a 10-15 second preview video for a course concept. This is a blocking operation that may take 1-3 minutes.',
+  })
+  async generateVideo(
+    @Auth() user: UserDocument,
+    @Body() dto: GenerateVideoDto,
+  ) {
+    const result = await this.aiService.generatePreviewVideo(dto, user);
+    return {
+      message: 'Video generated successfully',
+      ...result,
     };
   }
 }

@@ -20,6 +20,7 @@ const envSchema = z.object({
   LIVEKIT_URL: z.string(),
   AGENT_API_KEY: z.string().optional(), // Optional API key for agent authentication
   XTTS_URL: z.string().optional().default('http://localhost:9201'), // XTTS voice cloning service URL
+  VIDEO_GEN_URL: z.string().optional().default('http://localhost:9400'), // Video generation service URL
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
