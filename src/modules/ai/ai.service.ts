@@ -166,12 +166,16 @@ export class AiService {
     course_teaching_style?: string;
     course_pace?: string;
     course_experience_level?: string;
+    voice_id?: string;
+    voice_type?: string;
+    voice_name?: string;
+    avatar_url?: string;
   }> {
     // Parse room name
     const { courseId, moduleNumber, lessonNumber } =
       this.parseRoomName(roomName);
 
-    // Get course
+    // Get course (with ai_voice and ai_avatar populated)
     const course = await this.courseService.getCourse({ _id: courseId });
     if (!course) {
       throw new NotFoundException(`Course with ID ${courseId} not found`);
@@ -197,6 +201,10 @@ export class AiService {
       );
     }
 
+    // Extract voice info from populated ai_voice
+    const aiVoice = course.ai_voice as any;
+    const aiAvatar = course.ai_avatar as any;
+
     return {
       course_id: course._id.toString(),
       course_title: course.title,
@@ -211,6 +219,12 @@ export class AiService {
       course_teaching_style: course.teaching_style,
       course_pace: course.pace,
       course_experience_level: course.experience_level,
+      // Voice info for TTS
+      voice_id: aiVoice?.voice_id,
+      voice_type: aiVoice?.voice_type,
+      voice_name: aiVoice?.name,
+      // Avatar info
+      avatar_url: aiAvatar?.media?.url || aiAvatar?.media?.location,
     };
   }
 }
