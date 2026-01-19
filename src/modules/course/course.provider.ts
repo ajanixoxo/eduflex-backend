@@ -68,7 +68,7 @@ export class CourseProvider {
       (aiVoice.user && aiVoice.user._id.equals(user._id));
     const isAvatarOwnerValid =
       aiAvatar.owner === AIMediaOwner.SYSTEM ||
-      aiAvatar.user._id.equals(user._id);
+      (aiAvatar.user && aiAvatar.user._id.equals(user._id));
 
     if (!isVoiceOwnerValid) {
       throw new BadRequestException('You cannot use this AI Voice');
