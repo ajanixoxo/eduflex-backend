@@ -311,7 +311,8 @@ export class AiService {
       }
 
       // Poll for completion (blocking)
-      const maxWaitMs = 5 * 60 * 1000; // 5 minutes max
+      // Increased timeout to 10 minutes to handle queue wait times when other videos are generating
+      const maxWaitMs = 10 * 60 * 1000; // 10 minutes max
       const pollIntervalMs = 3000; // Poll every 3 seconds
       const startTime = Date.now();
 
@@ -323,7 +324,9 @@ export class AiService {
         );
 
         const status = statusResponse.data;
-        this.logger.log(`Video job ${jobId} status: ${status.status}, progress: ${status.progress}%`);
+        const queueInfo = status.queue_position ? ` (queue position: ${status.queue_position})` : '';
+        const elapsedSec = Math.round((Date.now() - startTime) / 1000);
+        this.logger.log(`Video job ${jobId} status: ${status.status}, progress: ${status.progress}%${queueInfo} [${elapsedSec}s elapsed]`);
 
         if (status.status === 'completed') {
           // Get the download path from the result (e.g., /video/download/{job_id})
