@@ -521,6 +521,7 @@ export class ChatProvider {
       language,
       timestamp,
       images,
+      videos,
     } = body;
 
     // Parse room_name to extract course/module/lesson
@@ -618,12 +619,21 @@ export class ChatProvider {
         // Note: media_id is optional and not provided by agent
       }));
 
+      // Map videos from DTO format to schema format
+      const mappedVideos = videos?.map((vid) => ({
+        url: vid.url,
+        thumbnail_url: vid.thumbnail_url,
+        duration: vid.duration,
+        // Note: media_id is optional and not provided by agent
+      }));
+
       // Update the AI reply
       chatMessage.ai_reply = {
         sender: ChatSender.AI,
         message: text,
         is_error: false,
         images: mappedImages && mappedImages.length > 0 ? mappedImages : undefined,
+        videos: mappedVideos && mappedVideos.length > 0 ? mappedVideos : undefined,
         metadata: {
           room_name,
           language,
@@ -639,6 +649,7 @@ export class ChatProvider {
           message_id: message_id,
           ai_response: text,
           images: mappedImages,
+          videos: mappedVideos,
         },
       };
     } else {
