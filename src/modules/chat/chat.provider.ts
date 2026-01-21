@@ -694,6 +694,8 @@ export class ChatProvider {
         speaker_type: string;
         text: string;
         timestamp: Date;
+        images?: Array<{ url: string; prompt?: string }>;
+        videos?: Array<{ url: string; thumbnail_url?: string; duration?: number }>;
       }> = [];
 
       for (const msg of messages.reverse()) {
@@ -703,6 +705,8 @@ export class ChatProvider {
             speaker_type: 'user',
             text: msg.user_message.message,
             timestamp: msg.created_at,
+            images: msg.user_message.images,
+            videos: msg.user_message.videos,
           });
         }
 
@@ -712,6 +716,8 @@ export class ChatProvider {
             speaker_type: 'ai',
             text: msg.ai_reply.message,
             timestamp: msg.created_at,
+            images: msg.ai_reply.images,
+            videos: msg.ai_reply.videos,
           });
         }
       }
