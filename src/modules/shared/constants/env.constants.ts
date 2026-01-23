@@ -20,7 +20,7 @@ const envSchema = z.object({
   LIVEKIT_URL: z.string(),
   AGENT_API_KEY: z.string().optional(), // Optional API key for agent authentication
   XTTS_URL: z.string().optional().default('https://rqy0j6tstfi5sm-9201.proxy.runpod.net'), // Chatterbox voice cloning (New Pod 1)
-  VIDEO_GEN_URL: z.string().optional().default('http://localhost:9400'), // Video generation service URL (Pod 2 - update when ready)
+  VIDEO_GEN_URL: z.string().optional().default('https://tmckh5e2ezxiuk-9400.proxy.runpod.net'), // Video generation service URL (Pod 2)
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
