@@ -501,7 +501,7 @@ export class AiService {
         current_scene: status.current_scene,
         total_scenes: status.total_scenes,
         queue_position: status.queue_position,
-        video_url: status.result?.video_url || status.result?.video_path,
+        video_url: status.video_url || status.result?.video_url || status.result?.video_path,
         error: status.error,
       };
     } catch (error) {
