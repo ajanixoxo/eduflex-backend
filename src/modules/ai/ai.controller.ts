@@ -5,6 +5,7 @@ import {
   Query,
   Body,
   Headers,
+  Param,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiHeader, ApiOperation } from '@nestjs/swagger';
@@ -83,6 +84,66 @@ export class AiController {
     const result = await this.aiService.generatePreviewVideo(dto, user);
     return {
       message: 'Video generated successfully',
+      ...result,
+    };
+  }
+
+  /**
+   * Start video generation (non-blocking)
+   * Returns job_id immediately for progress polling
+   */
+  @Post('video/start')
+  @ApiOperation({
+    summary: 'Start video generation (non-blocking)',
+    description: 'Starts video generation and returns a job_id immediately. Poll /ai/video/status/{job_id} for progress.',
+  })
+  async startVideoGeneration(
+    @Auth() user: UserDocument,
+    @Body() dto: GenerateVideoDto,
+  ) {
+    const result = await this.aiService.startVideoGeneration(dto, user);
+    return {
+      message: result.message,
+      data: {
+        job_id: result.job_id,
+        status: result.status,
+      },
+    };
+  }
+
+  /**
+   * Get video generation status
+   * Poll this endpoint to track progress
+   */
+  @Get('video/status/:jobId')
+  @ApiOperation({
+    summary: 'Get video generation status',
+    description: 'Returns the current status and progress of a video generation job.',
+  })
+  async getVideoStatus(@Param('jobId') jobId: string) {
+    const status = await this.aiService.getVideoStatus(jobId);
+    return {
+      message: 'Video status retrieved',
+      data: status,
+    };
+  }
+
+  /**
+   * Finalize completed video (download from pod, upload to Cloudinary)
+   * Call this after status shows 'completed'
+   */
+  @Post('video/finalize/:jobId')
+  @ApiOperation({
+    summary: 'Finalize completed video',
+    description: 'Downloads the completed video from AI pod and uploads to Cloudinary. Call after status is "completed".',
+  })
+  async finalizeVideo(
+    @Auth() user: UserDocument,
+    @Param('jobId') jobId: string,
+  ) {
+    const result = await this.aiService.finalizeVideo(jobId, user);
+    return {
+      message: 'Video finalized successfully',
       ...result,
     };
   }

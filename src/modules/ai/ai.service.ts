@@ -400,4 +400,178 @@ export class AiService {
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
+
+  /**
+   * Start video generation (non-blocking)
+   * Returns job_id immediately for polling
+   */
+  async startVideoGeneration(
+    dto: GenerateVideoDto,
+    user: UserDocument,
+  ): Promise<{
+    job_id: string;
+    status: string;
+    message: string;
+  }> {
+    this.logger.log(`Starting video generation for concept: ${dto.target_concept}`);
+
+    // Get the voice_id from the voice profile
+    const voice = await this.mediaService.getAIVoice({ _id: dto.voice_profile_id });
+    if (!voice) {
+      throw new NotFoundException('Voice profile not found');
+    }
+    const voiceId = voice.voice_id || 'guy';
+
+    // Create a simple 2-scene script for a 10-15 second preview
+    const script = {
+      title: `Introduction to ${dto.target_concept}`,
+      total_scenes: 2,
+      scenes: [
+        {
+          scene_number: 1,
+          video_prompt: `A book opening on a desk, natural lighting, wooden table`,
+          voiceover: `Welcome! Let's explore ${dto.target_concept} together. This course will guide you through the fundamentals.`,
+        },
+        {
+          scene_number: 2,
+          video_prompt: `Colorful sticky notes on a whiteboard, office setting, daylight`,
+          voiceover: `By the end, you'll have a solid understanding of the key concepts. Let's get started!`,
+        },
+      ],
+    };
+
+    // Generate unique job ID
+    const jobId = `preview_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    try {
+      // Start video generation on the AI pod (non-blocking)
+      this.logger.log(`Starting video generation job: ${jobId}`);
+      const startResponse = await firstValueFrom(
+        this.httpService.post(`${(Env as any).VIDEO_GEN_URL}/video/generate`, {
+          job_id: jobId,
+          topic: dto.target_concept,
+          context: 'course preview',
+          duration_target: 15,
+          voice_id: voiceId,
+          room_name: `preview-${user._id}`,
+          user_id: user._id.toString(),
+          script: script,
+        }),
+      );
+
+      if (!startResponse.data?.success && !startResponse.data?.job_id) {
+        throw new BadRequestException('Failed to start video generation');
+      }
+
+      return {
+        job_id: startResponse.data?.job_id || jobId,
+        status: 'processing',
+        message: 'Video generation started. Poll /ai/video/status/{job_id} for progress.',
+      };
+    } catch (error) {
+      this.logger.error(`Failed to start video generation: ${error.message}`, error.stack);
+      throw new BadRequestException(`Failed to start video generation: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get video generation status from AI pod
+   */
+  async getVideoStatus(jobId: string): Promise<{
+    status: string;
+    progress: number;
+    phase_description?: string;
+    current_scene?: number;
+    total_scenes?: number;
+    queue_position?: number;
+    video_url?: string;
+    error?: string;
+  }> {
+    try {
+      const statusResponse = await firstValueFrom(
+        this.httpService.get(`${(Env as any).VIDEO_GEN_URL}/video/status/${jobId}`),
+      );
+
+      const status = statusResponse.data;
+
+      return {
+        status: status.status || 'unknown',
+        progress: status.progress || 0,
+        phase_description: status.phase_description,
+        current_scene: status.current_scene,
+        total_scenes: status.total_scenes,
+        queue_position: status.queue_position,
+        video_url: status.result?.video_url || status.result?.video_path,
+        error: status.error,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to get video status for ${jobId}: ${error.message}`);
+
+      if (error.response?.status === 404) {
+        return {
+          status: 'not_found',
+          progress: 0,
+          error: 'Video job not found',
+        };
+      }
+
+      throw new BadRequestException(`Failed to get video status: ${error.message}`);
+    }
+  }
+
+  /**
+   * Download completed video from AI pod and upload to Cloudinary
+   */
+  async finalizeVideo(
+    jobId: string,
+    user: UserDocument,
+  ): Promise<{
+    video_url: string;
+    duration_seconds: number;
+  }> {
+    // Get current status
+    const status = await this.getVideoStatus(jobId);
+
+    if (status.status !== 'completed') {
+      throw new BadRequestException(`Video is not ready. Current status: ${status.status}`);
+    }
+
+    const downloadPath = status.video_url;
+    if (!downloadPath) {
+      throw new BadRequestException('Video completed but no download path returned');
+    }
+
+    // Fetch the video from the pod's download endpoint
+    this.logger.log(`Fetching video from pod: ${downloadPath}`);
+    const videoGenUrl = (Env as any).VIDEO_GEN_URL || 'http://localhost:9400';
+    const fullDownloadUrl = downloadPath.startsWith('/')
+      ? `${videoGenUrl}${downloadPath}`
+      : downloadPath;
+
+    const videoResponse = await firstValueFrom(
+      this.httpService.get(fullDownloadUrl, {
+        responseType: 'arraybuffer',
+        timeout: 60000,
+      }),
+    );
+
+    // Upload to Cloudinary
+    this.logger.log(`Uploading video to Cloudinary for user: ${user._id}`);
+    const base64Video = Buffer.from(videoResponse.data).toString('base64');
+    const cloudinaryResult = await cloudinary.uploader.upload(
+      `data:video/mp4;base64,${base64Video}`,
+      {
+        folder: `eduflexai/${user._id}/preview_videos`,
+        resource_type: 'video',
+        public_id: jobId,
+      },
+    );
+
+    this.logger.log(`Video uploaded to Cloudinary: ${cloudinaryResult.secure_url}`);
+
+    return {
+      video_url: cloudinaryResult.secure_url,
+      duration_seconds: 15, // Default for preview videos
+    };
+  }
 }
