@@ -515,6 +515,17 @@ export class AiService {
         };
       }
 
+      // Handle 524 timeout errors gracefully - video is likely still processing
+      if (error.response?.status === 524 || error.message?.includes('524') || error.message?.includes('timeout')) {
+        this.logger.warn(`Timeout getting video status for ${jobId} - returning processing status`);
+        return {
+          status: 'processing',
+          progress: -1, // -1 indicates unknown progress due to timeout
+          phase_description: 'Video generation in progress (checking status...)',
+          error: undefined,
+        };
+      }
+
       throw new BadRequestException(`Failed to get video status: ${error.message}`);
     }
   }
