@@ -33,6 +33,8 @@ import { UserService } from '../user/user.service';
 import axios, { AxiosInstance } from 'axios';
 import { MediaService } from '../media/media.service';
 import { AIMediaOwner } from '../media/enums';
+import { LessonMaterialService } from './lesson-material.service';
+import { Env } from '../shared/constants';
 
 @Injectable()
 export class CourseProvider {
@@ -42,6 +44,7 @@ export class CourseProvider {
     private readonly courseService: CourseService,
     private readonly userService: UserService,
     private readonly mediaService: MediaService,
+    private readonly lessonMaterialService: LessonMaterialService,
   ) {
     this.client = axios.create({});
   }
@@ -128,6 +131,16 @@ export class CourseProvider {
 
       this.logger.log(`Course created successfully: ${createdCourse._id}`);
 
+      // Generate lesson materials in the background (don't await - let it run async)
+      this.generateMaterialsInBackground(
+        createdCourse._id.toString(),
+        createdCourse.title,
+        generated.modules,
+        body.experience_level,
+        body.language,
+        body.teaching_style,
+      );
+
       return {
         message: 'Course created successfully',
         data: createdCourse,
@@ -135,6 +148,81 @@ export class CourseProvider {
     } catch (error: any) {
       this.logger.error(`Failed to create course: ${error.message}`, error.stack);
       throw error;
+    }
+  }
+
+  /**
+   * Generate lesson materials in the background after course creation.
+   * This runs asynchronously so the user doesn't have to wait.
+   */
+  private async generateMaterialsInBackground(
+    courseId: string,
+    courseTitle: string,
+    modules: any[],
+    experienceLevel: string,
+    language: string,
+    teachingStyle: string,
+  ): Promise<void> {
+    try {
+      this.logger.log(`Starting background material generation for course ${courseId}`);
+
+      const aiPodUrl = Env.AI_WEB_URL || 'http://localhost:8002';
+
+      // Call AI pod to generate materials for all lessons
+      const response = await axios.post(
+        `${aiPodUrl}/courses/${courseId}/generate-materials`,
+        {
+          course_id: courseId,
+          course_title: courseTitle,
+          modules: modules.map((m) => ({
+            module_number: m.module_number,
+            title: m.title,
+            lessons: m.lessons.map((l: any) => ({
+              lesson_number: l.lesson_number,
+              title: l.title,
+            })),
+          })),
+          experience_level: experienceLevel?.toLowerCase() || 'beginner',
+          language: language?.toLowerCase() || 'en',
+          teaching_style: teachingStyle?.toLowerCase() || 'friendly',
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Agent-API-Key': Env.AGENT_API_KEY || '',
+          },
+          timeout: 600000, // 10 minutes for full course generation
+        },
+      );
+
+      const generatedMaterials = response.data?.data?.materials || response.data?.materials || [];
+
+      // Store each generated material in the database
+      for (const mat of generatedMaterials) {
+        await this.lessonMaterialService.upsertMaterial(
+          courseId,
+          mat.module_number,
+          mat.lesson_number,
+          {
+            lesson_title: mat.lesson_title,
+            learning_objectives: mat.learning_objectives || [],
+            sections: mat.sections || [],
+            summary_points: mat.summary_points || [],
+            quiz: mat.quiz || [],
+            estimated_duration: mat.estimated_duration || 15,
+            difficulty: mat.difficulty || 'medium',
+            generation_status: 'ready',
+          },
+        );
+      }
+
+      this.logger.log(`Successfully generated ${generatedMaterials.length} materials for course ${courseId}`);
+    } catch (error: any) {
+      this.logger.error(
+        `Failed to generate materials for course ${courseId}: ${error.message}`,
+        error.stack,
+      );
+      // Don't throw - this is background processing, we don't want to affect the user
     }
   }
   async changeCourseAIAvatar({
