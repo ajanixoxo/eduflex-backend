@@ -173,6 +173,7 @@ export class LessonMaterialProvider {
       lessons: m.lessons.map((l) => ({
         lesson_number: l.lesson_number,
         title: l.title,
+        type: (l as any).type || 'lesson',
       })),
     }));
 
