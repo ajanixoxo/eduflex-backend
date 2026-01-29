@@ -55,6 +55,20 @@ export class LessonMaterialProvider {
       throw new NotFoundException('Course not found');
     }
 
+    // Transform sections to ensure required fields have defaults
+    const transformedSections = (sections || []).map((s) => ({
+      ...s,
+      key_points: s.key_points || [],
+      examples: s.examples || [],
+    }));
+
+    // Transform quiz to ensure required fields have defaults
+    const transformedQuiz = (quiz || []).map((q) => ({
+      ...q,
+      type: q.type || 'short_answer',
+      points: q.points || 1,
+    }));
+
     // Upsert the material
     const material = await this.lessonMaterialService.upsertMaterial(
       course_id,
@@ -63,9 +77,9 @@ export class LessonMaterialProvider {
       {
         lesson_title,
         learning_objectives: learning_objectives || [],
-        sections: sections || [],
+        sections: transformedSections,
         summary_points: summary_points || [],
-        quiz: quiz || [],
+        quiz: transformedQuiz,
         estimated_duration: estimated_duration || 15,
         difficulty: difficulty || 'medium',
         generation_status: 'ready',
@@ -73,7 +87,6 @@ export class LessonMaterialProvider {
     );
 
     return {
-      success: true,
       message: 'Lesson material stored successfully',
       data: material,
     };
@@ -104,7 +117,6 @@ export class LessonMaterialProvider {
     }
 
     return {
-      success: true,
       message: 'Material retrieved successfully',
       data: material,
     };
@@ -121,7 +133,6 @@ export class LessonMaterialProvider {
     const materials = await this.lessonMaterialService.getAllMaterialsForCourse(courseId);
 
     return {
-      success: true,
       message: `Retrieved ${materials.length} materials`,
       data: materials,
     };
@@ -149,7 +160,6 @@ export class LessonMaterialProvider {
       const existingMaterials = await this.lessonMaterialService.getAllMaterialsForCourse(course_id);
       if (existingMaterials.length > 0) {
         return {
-          success: true,
           message: `Materials already exist (${existingMaterials.length} lessons). Use force_regenerate=true to regenerate.`,
           data: { existing_count: existingMaterials.length },
         };
@@ -191,6 +201,20 @@ export class LessonMaterialProvider {
       // Store each generated material
       const generatedMaterials = response.data?.data?.materials || response.data?.materials || [];
       for (const mat of generatedMaterials) {
+        // Transform sections to ensure required fields have defaults
+        const transformedSections = (mat.sections || []).map((s: any) => ({
+          ...s,
+          key_points: s.key_points || [],
+          examples: s.examples || [],
+        }));
+
+        // Transform quiz to ensure required fields have defaults
+        const transformedQuiz = (mat.quiz || []).map((q: any) => ({
+          ...q,
+          type: q.type || 'short_answer',
+          points: q.points || 1,
+        }));
+
         await this.lessonMaterialService.upsertMaterial(
           course_id,
           mat.module_number,
@@ -198,9 +222,9 @@ export class LessonMaterialProvider {
           {
             lesson_title: mat.lesson_title,
             learning_objectives: mat.learning_objectives || [],
-            sections: mat.sections || [],
+            sections: transformedSections,
             summary_points: mat.summary_points || [],
-            quiz: mat.quiz || [],
+            quiz: transformedQuiz,
             estimated_duration: mat.estimated_duration || 15,
             difficulty: mat.difficulty || 'medium',
             generation_status: 'ready',
@@ -209,7 +233,6 @@ export class LessonMaterialProvider {
       }
 
       return {
-        success: true,
         message: `Generated materials for ${generatedMaterials.length} lessons`,
         data: {
           generated_count: generatedMaterials.length,
@@ -260,7 +283,6 @@ export class LessonMaterialProvider {
       );
 
       return {
-        success: true,
         message: 'PDF uploaded successfully',
         data: {
           pdf_url: result.secure_url,
@@ -283,7 +305,6 @@ export class LessonMaterialProvider {
     const deletedCount = await this.lessonMaterialService.deleteAllMaterialsForCourse(courseId);
 
     return {
-      success: true,
       message: `Deleted ${deletedCount} materials`,
       data: { deleted_count: deletedCount },
     };

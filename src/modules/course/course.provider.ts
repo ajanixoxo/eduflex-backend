@@ -199,6 +199,20 @@ export class CourseProvider {
 
       // Store each generated material in the database
       for (const mat of generatedMaterials) {
+        // Transform sections to ensure required fields have defaults
+        const transformedSections = (mat.sections || []).map((s: any) => ({
+          ...s,
+          key_points: s.key_points || [],
+          examples: s.examples || [],
+        }));
+
+        // Transform quiz to ensure required fields have defaults
+        const transformedQuiz = (mat.quiz || []).map((q: any) => ({
+          ...q,
+          type: q.type || 'short_answer',
+          points: q.points || 1,
+        }));
+
         await this.lessonMaterialService.upsertMaterial(
           courseId,
           mat.module_number,
@@ -206,9 +220,9 @@ export class CourseProvider {
           {
             lesson_title: mat.lesson_title,
             learning_objectives: mat.learning_objectives || [],
-            sections: mat.sections || [],
+            sections: transformedSections,
             summary_points: mat.summary_points || [],
-            quiz: mat.quiz || [],
+            quiz: transformedQuiz,
             estimated_duration: mat.estimated_duration || 15,
             difficulty: mat.difficulty || 'medium',
             generation_status: 'ready',
