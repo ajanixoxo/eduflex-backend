@@ -18,6 +18,7 @@ import {
   GenerateMaterialsDto,
 } from './dtos';
 import { AgentApiKeyGuard } from '../shared/guards';
+import { IsPublic } from 'src/decorators';
 
 @ApiTags('Lesson Materials')
 @Controller('lesson-materials')
@@ -28,6 +29,7 @@ export class LessonMaterialController {
    * Store lesson material - Called by AI pod
    */
   @Post()
+  @IsPublic()
   @UseGuards(AgentApiKeyGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Store lesson material (from AI pod)' })
@@ -51,6 +53,7 @@ export class LessonMaterialController {
    * Generate materials for a course - Agent endpoint
    */
   @Post('generate-agent')
+  @IsPublic()
   @UseGuards(AgentApiKeyGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Generate materials (agent endpoint)' })
@@ -62,6 +65,7 @@ export class LessonMaterialController {
    * Get all materials for a course
    */
   @Get('course/:courseId')
+  @IsPublic()
   @UseGuards(AgentApiKeyGuard)
   @ApiOperation({ summary: 'Get all materials for a course' })
   async getAllMaterials(@Param('courseId') courseId: string) {
@@ -72,6 +76,7 @@ export class LessonMaterialController {
    * Get material for a specific lesson
    */
   @Get('course/:courseId/module/:moduleNumber/lesson/:lessonNumber')
+  @IsPublic()
   @UseGuards(AgentApiKeyGuard)
   @ApiOperation({ summary: 'Get material for a specific lesson' })
   async getMaterial(
