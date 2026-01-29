@@ -62,24 +62,54 @@ export class LessonMaterialController {
   }
 
   /**
-   * Get all materials for a course
+   * Get all materials for a course - User endpoint (for frontend)
    */
   @Get('course/:courseId')
-  @IsPublic()
-  @UseGuards(AgentApiKeyGuard)
-  @ApiOperation({ summary: 'Get all materials for a course' })
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all materials for a course (user auth)' })
   async getAllMaterials(@Param('courseId') courseId: string) {
     return this.lessonMaterialProvider.getAllMaterials({ courseId });
   }
 
   /**
-   * Get material for a specific lesson
+   * Get all materials for a course - Agent endpoint
    */
-  @Get('course/:courseId/module/:moduleNumber/lesson/:lessonNumber')
+  @Get('agent/course/:courseId')
   @IsPublic()
   @UseGuards(AgentApiKeyGuard)
-  @ApiOperation({ summary: 'Get material for a specific lesson' })
+  @ApiOperation({ summary: 'Get all materials for a course (agent auth)' })
+  async getAllMaterialsAgent(@Param('courseId') courseId: string) {
+    return this.lessonMaterialProvider.getAllMaterials({ courseId });
+  }
+
+  /**
+   * Get material for a specific lesson - User endpoint (for frontend)
+   */
+  @Get('course/:courseId/module/:moduleNumber/lesson/:lessonNumber')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get material for a specific lesson (user auth)' })
   async getMaterial(
+    @Param('courseId') courseId: string,
+    @Param('moduleNumber') moduleNumber: number,
+    @Param('lessonNumber') lessonNumber: string,
+  ) {
+    return this.lessonMaterialProvider.getMaterial({
+      courseId,
+      moduleNumber: Number(moduleNumber),
+      lessonNumber,
+    });
+  }
+
+  /**
+   * Get material for a specific lesson - Agent endpoint
+   */
+  @Get('agent/course/:courseId/module/:moduleNumber/lesson/:lessonNumber')
+  @IsPublic()
+  @UseGuards(AgentApiKeyGuard)
+  @ApiOperation({ summary: 'Get material for a specific lesson (agent auth)' })
+  async getMaterialAgent(
     @Param('courseId') courseId: string,
     @Param('moduleNumber') moduleNumber: number,
     @Param('lessonNumber') lessonNumber: string,
