@@ -14,11 +14,13 @@ import { LessonMaterialController } from './lesson-material.controller';
 import { LessonMaterialProvider } from './lesson-material.provider';
 import { UsersModule } from '../user/user.module';
 import { MediaModule } from '../media/media.module';
+import { AuthModule } from '../authentication/auth.module';
 
 @Module({
   imports: [
     forwardRef(() => UsersModule),
     forwardRef(() => MediaModule),
+    forwardRef(() => AuthModule),
     MongooseModule.forFeature([
       { name: Course.name, schema: CourseSchema },
       { name: LearningProgress.name, schema: LearningProgressSchema },
