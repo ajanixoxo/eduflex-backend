@@ -36,7 +36,7 @@ export class LessonMaterialController {
   }
 
   /**
-   * Generate materials for a course - Triggers AI generation
+   * Generate materials for a course - Triggers AI generation (user auth)
    */
   @Post('generate')
   @UseGuards(AuthGuard)
@@ -44,6 +44,17 @@ export class LessonMaterialController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Generate materials for all lessons in a course' })
   async generateMaterials(@Body() body: GenerateMaterialsDto) {
+    return this.lessonMaterialProvider.generateMaterials({ body });
+  }
+
+  /**
+   * Generate materials for a course - Agent endpoint
+   */
+  @Post('generate-agent')
+  @UseGuards(AgentApiKeyGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Generate materials (agent endpoint)' })
+  async generateMaterialsAgent(@Body() body: GenerateMaterialsDto) {
     return this.lessonMaterialProvider.generateMaterials({ body });
   }
 
