@@ -4,7 +4,7 @@ import {
   BadRequestException,
   StreamableFile,
 } from '@nestjs/common';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { LessonMaterialService } from './lesson-material.service';
 import { CourseService } from './course.service';
 import { IApiResponseDto } from '../shared/types';
