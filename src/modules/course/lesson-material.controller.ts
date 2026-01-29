@@ -9,7 +9,10 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Res,
+  StreamableFile,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { LessonMaterialProvider } from './lesson-material.provider';
 import { AuthGuard } from '../authentication/auth.guard';
@@ -118,6 +121,27 @@ export class LessonMaterialController {
       courseId,
       moduleNumber: Number(moduleNumber),
       lessonNumber,
+    });
+  }
+
+  /**
+   * Download lesson material as PDF
+   */
+  @Get('course/:courseId/module/:moduleNumber/lesson/:lessonNumber/download')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Download lesson material as PDF' })
+  async downloadPdf(
+    @Param('courseId') courseId: string,
+    @Param('moduleNumber') moduleNumber: number,
+    @Param('lessonNumber') lessonNumber: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    return this.lessonMaterialProvider.downloadPdf({
+      courseId,
+      moduleNumber: Number(moduleNumber),
+      lessonNumber,
+      res,
     });
   }
 

@@ -2,7 +2,9 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  StreamableFile,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { LessonMaterialService } from './lesson-material.service';
 import { CourseService } from './course.service';
 import { IApiResponseDto } from '../shared/types';
@@ -292,6 +294,51 @@ export class LessonMaterialProvider {
       };
     } catch (error: any) {
       throw new BadRequestException(`Failed to upload PDF: ${error.message}`);
+    }
+  }
+
+  /**
+   * Download lesson material as PDF from AI pod
+   */
+  async downloadPdf({
+    courseId,
+    moduleNumber,
+    lessonNumber,
+    res,
+  }: {
+    courseId: string;
+    moduleNumber: number;
+    lessonNumber: string;
+    res: Response;
+  }): Promise<StreamableFile> {
+    try {
+      const aiPodUrl = Env.AI_WEB_URL || 'http://localhost:8002';
+      const response = await axios.get(
+        `${aiPodUrl}/courses/${courseId}/modules/${moduleNumber}/lessons/${lessonNumber}/download-notes`,
+        {
+          headers: {
+            'X-Agent-API-Key': Env.AGENT_API_KEY || '',
+          },
+          responseType: 'arraybuffer',
+          timeout: 60000,
+        },
+      );
+
+      // Get filename from Content-Disposition header or create one
+      const contentDisposition = response.headers['content-disposition'] || '';
+      const filenameMatch = contentDisposition.match(/filename=(.+)/);
+      const filename = filenameMatch
+        ? filenameMatch[1].replace(/"/g, '')
+        : `FlexNote_M${moduleNumber}_L${lessonNumber}.pdf`;
+
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+      });
+
+      return new StreamableFile(Buffer.from(response.data));
+    } catch (error: any) {
+      throw new BadRequestException(`Failed to download PDF: ${error.message}`);
     }
   }
 
