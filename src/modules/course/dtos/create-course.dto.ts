@@ -19,6 +19,8 @@ import {
   LearningPreference,
   TimeDedication,
   CourseFormatAddons,
+  CourseMode,
+  GradeLevel,
 } from '../enums';
 
 export class CreateCourseDto {
@@ -134,6 +136,36 @@ export class CreateCourseDto {
   @IsString()
   @IsMongoId()
   ai_avatar: string;
+
+  // Quiz Mode fields
+  @ApiPropertyOptional({
+    description: 'Course mode (learning or exam prep)',
+    enum: CourseMode,
+    default: CourseMode.LEARNING,
+    example: 'learning',
+  })
+  @IsOptional()
+  @IsEnum(CourseMode)
+  course_mode?: CourseMode;
+
+  @ApiPropertyOptional({
+    description: 'Grade level for exam prep mode',
+    enum: GradeLevel,
+    example: 'high_school',
+  })
+  @IsOptional()
+  @IsEnum(GradeLevel)
+  grade_level?: GradeLevel;
+
+  @ApiPropertyOptional({
+    description: 'Selected exam topics',
+    isArray: true,
+    example: ['algebra', 'geometry'],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  exam_topics?: string[];
 }
 
 export class UpdateCourseDto extends PartialType(CreateCourseDto) {
