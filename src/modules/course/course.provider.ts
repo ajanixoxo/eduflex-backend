@@ -322,7 +322,7 @@ export class CourseProvider {
     // Get all lesson materials for this course and extract quiz questions
     const materials = await this.lessonMaterialService.getAllMaterialsForCourse(courseId);
 
-    const questions: any[] = [];
+    let questions: any[] = [];
     let questionIndex = 0;
 
     for (const material of materials) {
@@ -341,6 +341,12 @@ export class CourseProvider {
       }
     }
 
+    // If no questions found and this is an exam_prep course, generate fallback questions
+    if (questions.length === 0 && (course as any).course_mode === 'exam_prep') {
+      this.logger.log(`No quiz questions found for exam_prep course ${courseId}, generating fallback questions`);
+      questions = await this.generateFallbackQuizQuestions(course);
+    }
+
     return {
       message: 'Quiz questions retrieved successfully',
       data: {
@@ -349,6 +355,101 @@ export class CourseProvider {
         questions,
       },
     };
+  }
+
+  /**
+   * Generate fallback quiz questions when AI service is unavailable
+   */
+  private async generateFallbackQuizQuestions(course: CourseDocument): Promise<any[]> {
+    const questions: any[] = [];
+    const examTopics = (course as any).exam_topics || [];
+    const gradeLevel = (course as any).grade_level || 'high_school';
+    const courseTopic = course.topic || 'General Knowledge';
+
+    // If no exam_topics, use the course topic
+    const topics = examTopics.length > 0 ? examTopics : [courseTopic];
+
+    // Generate questions for each topic
+    for (let topicIdx = 0; topicIdx < topics.length; topicIdx++) {
+      const topic = topics[topicIdx];
+
+      // Generate 3-4 questions per topic
+      const topicQuestions = this.generateQuestionsForTopic(topic, gradeLevel, topicIdx);
+      questions.push(...topicQuestions);
+    }
+
+    return questions;
+  }
+
+  /**
+   * Generate sample questions for a given topic
+   */
+  private generateQuestionsForTopic(topic: string, gradeLevel: string, topicIndex: number): any[] {
+    const questions: any[] = [];
+
+    // Question templates based on topic
+    const questionTemplates = [
+      {
+        question: `What is the primary concept behind ${topic}?`,
+        options: [
+          `Understanding the fundamentals of ${topic}`,
+          `Memorizing ${topic} formulas`,
+          `Ignoring ${topic} principles`,
+          `Avoiding ${topic} applications`,
+        ],
+        correct_answer: `Understanding the fundamentals of ${topic}`,
+        explanation: `The primary concept involves understanding the fundamental principles and how they apply in various contexts.`,
+      },
+      {
+        question: `Which of the following best describes a key principle of ${topic}?`,
+        options: [
+          `It has no practical applications`,
+          `It forms the foundation for advanced concepts`,
+          `It is only theoretical`,
+          `It cannot be measured or observed`,
+        ],
+        correct_answer: `It forms the foundation for advanced concepts`,
+        explanation: `${topic} principles serve as building blocks for more advanced concepts and real-world applications.`,
+      },
+      {
+        question: `How is ${topic} commonly applied in real-world scenarios?`,
+        options: [
+          `Through practical problem-solving`,
+          `It has no real-world applications`,
+          `Only in laboratory settings`,
+          `It cannot be applied practically`,
+        ],
+        correct_answer: `Through practical problem-solving`,
+        explanation: `${topic} concepts are regularly applied in solving practical problems and making informed decisions.`,
+      },
+      {
+        question: `What is an important consideration when studying ${topic}?`,
+        options: [
+          `Understanding the underlying concepts`,
+          `Skipping the basics`,
+          `Ignoring prerequisites`,
+          `Avoiding practice problems`,
+        ],
+        correct_answer: `Understanding the underlying concepts`,
+        explanation: `A solid grasp of underlying concepts is essential for mastering ${topic} and applying it effectively.`,
+      },
+    ];
+
+    for (let i = 0; i < questionTemplates.length; i++) {
+      const template = questionTemplates[i];
+      questions.push({
+        question_id: `q_fallback_${topicIndex}_${i}`,
+        question: template.question,
+        type: 'multiple_choice',
+        options: template.options,
+        topic: topic,
+        difficulty: gradeLevel === 'elementary' ? 'easy' : gradeLevel === 'middle_school' ? 'medium' : 'hard',
+        correct_answer: template.correct_answer,
+        explanation: template.explanation,
+      });
+    }
+
+    return questions;
   }
 
   async submitQuizAnswer({
@@ -367,6 +468,34 @@ export class CourseProvider {
 
     if (!course) {
       throw new NotFoundException('Course not found');
+    }
+
+    // Check if this is a fallback question (format: q_fallback_<topicIndex>_<questionIndex>)
+    if (body.question_id.startsWith('q_fallback_')) {
+      // Handle fallback questions - regenerate and find the question
+      const fallbackQuestions = await this.generateFallbackQuizQuestions(course);
+      const question = fallbackQuestions.find(q => q.question_id === body.question_id);
+
+      if (!question) {
+        throw new NotFoundException('Quiz question not found');
+      }
+
+      const isCorrect =
+        question.correct_answer?.toLowerCase().trim() ===
+        body.user_answer?.toLowerCase().trim();
+
+      return {
+        message: isCorrect ? 'Correct!' : 'Incorrect',
+        data: {
+          is_correct: isCorrect,
+          correct_answer: question.correct_answer,
+          explanation: question.explanation || 'No explanation available.',
+          score: {
+            correct: isCorrect ? 1 : 0,
+            total: 1,
+          },
+        },
+      };
     }
 
     // Parse question ID to find the question
