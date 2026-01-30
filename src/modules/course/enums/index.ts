@@ -76,3 +76,17 @@ export enum CourseFormatAddons {
   CERTIFICATE = 'certificate',
   REFERENCE_MATERIALS = 'reference materials',
 }
+
+export enum CourseMode {
+  LEARNING = 'learning',
+  EXAM_PREP = 'exam_prep',
+}
+
+export enum GradeLevel {
+  PRESCHOOL = 'preschool',
+  ELEMENTARY = 'elementary',
+  MIDDLE_SCHOOL = 'middle_school',
+  HIGH_SCHOOL = 'high_school',
+  COLLEGE = 'college',
+  PROFESSIONAL = 'professional',
+}

@@ -189,6 +189,11 @@ export class AiService {
     voice_type?: string;
     voice_name?: string;
     avatar_url?: string;
+    // Quiz Mode fields
+    course_mode?: string;
+    grade_level?: string;
+    exam_topics?: string[];
+    is_quiz_mode?: boolean;
   }> {
     // Parse room name
     const { courseId, moduleNumber, lessonNumber } =
@@ -244,6 +249,11 @@ export class AiService {
       voice_name: aiVoice?.name,
       // Avatar info
       avatar_url: aiAvatar?.media?.url || aiAvatar?.media?.location,
+      // Quiz Mode info
+      course_mode: (course as any).course_mode,
+      grade_level: (course as any).grade_level,
+      exam_topics: (course as any).exam_topics,
+      is_quiz_mode: (course as any).course_mode === 'exam_prep',
     };
   }
 

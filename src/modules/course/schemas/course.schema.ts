@@ -12,6 +12,8 @@ import {
   CourseFormatAddons,
   ModuleStatus,
   LessonStatus,
+  CourseMode,
+  GradeLevel,
 } from '../enums';
 import { type UserDocument } from 'src/modules/user/schemas';
 import {
@@ -183,6 +185,19 @@ export class Course extends TimestampMixin {
     required: false,
   })
   ai_avatar?: AIAvatarDocument;
+
+  // Quiz Mode / Exam Preparation fields
+  @Prop({ enum: Object.values(CourseMode), default: CourseMode.LEARNING })
+  course_mode: CourseMode;
+
+  @Prop({ enum: Object.values(GradeLevel) })
+  grade_level?: GradeLevel;
+
+  @Prop({ type: [String], default: [] })
+  exam_topics: string[];
+
+  @Prop({ default: false })
+  is_completed: boolean;
 }
 
 export const CourseSchema = SchemaFactory.createForClass(Course);
