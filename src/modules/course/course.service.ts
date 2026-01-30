@@ -5,7 +5,8 @@ import { PaginationService } from '../shared/services';
 import { Course, CourseDocument } from './schemas';
 import axios, { AxiosInstance } from 'axios';
 import { Env } from '../shared/constants';
-import { CreateCourseDto, ListCoursesDto } from './dtos';
+import { CreateCourseDto, GenerateExamTopicsResponse, ListCoursesDto } from './dtos';
+import { GradeLevel, Language } from './enums';
 import { IGeneratedCourseContent } from './types';
 import { UserService } from '../user/user.service';
 
@@ -45,6 +46,32 @@ export class CourseService {
         error.response?.data?.detail ||
         error.message ||
         'Failed to generate course outline';
+      throw new Error(message);
+    }
+  }
+
+  async generateExamSubtopics({
+    topic,
+    grade_level,
+    language,
+  }: {
+    topic: string;
+    grade_level: GradeLevel;
+    language?: Language;
+  }): Promise<GenerateExamTopicsResponse> {
+    try {
+      const response = await this.client.post('/generate-exam-topics', {
+        topic,
+        grade_level,
+        language: language || Language.EN,
+      });
+      return response.data;
+    } catch (error: any) {
+      const message =
+        error.response?.data?.message ||
+        error.response?.data?.detail ||
+        error.message ||
+        'Failed to generate exam subtopics';
       throw new Error(message);
     }
   }

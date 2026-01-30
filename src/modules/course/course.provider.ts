@@ -10,9 +10,11 @@ import {
   ChangeCourseAIAvatarDto,
   ChangeCourseAIVoiceDto,
   CreateCourseDto,
+  GenerateExamTopicsDto,
   LessonNavDto,
   ListCoursesDto,
   MarkLessonCompleteDto,
+  SubmitQuizAnswerDto,
   UpdateCourseDto,
 } from './dtos';
 import { IApiResponseDto } from '../shared/types';
@@ -96,7 +98,7 @@ export class CourseProvider {
       });
       this.logger.log('Course outline generated successfully');
 
-      const courseData = {
+      const courseData: any = {
         user: user._id,
         topic: body.topic,
         reason: body.reason,
@@ -126,6 +128,17 @@ export class CourseProvider {
         ai_avatar: aiAvatar._id,
       };
 
+      // Add quiz mode fields if present
+      if (body.course_mode) {
+        courseData.course_mode = body.course_mode;
+      }
+      if (body.grade_level) {
+        courseData.grade_level = body.grade_level;
+      }
+      if (body.exam_topics && body.exam_topics.length > 0) {
+        courseData.exam_topics = body.exam_topics;
+      }
+
       const createdCourse =
         await this.courseService.courseModel.create(courseData);
 
@@ -139,6 +152,9 @@ export class CourseProvider {
         body.experience_level,
         body.language,
         body.teaching_style,
+        body.course_mode,
+        body.grade_level,
+        body.exam_topics,
       );
 
       return {
@@ -162,9 +178,17 @@ export class CourseProvider {
     experienceLevel: string,
     language: string,
     teachingStyle: string,
+    courseMode?: string,
+    gradeLevel?: string,
+    examTopics?: string[],
   ): Promise<void> {
     try {
       this.logger.log(`Starting background material generation for course ${courseId}`);
+
+      const isExamPrep = courseMode === 'exam_prep';
+      if (isExamPrep) {
+        this.logger.log(`Course is in exam_prep mode, grade_level: ${gradeLevel}, topics: ${examTopics?.join(', ')}`);
+      }
 
       const aiPodUrl = Env.AI_WEB_URL || 'http://localhost:8002';
 
@@ -185,6 +209,10 @@ export class CourseProvider {
           experience_level: experienceLevel?.toLowerCase() || 'beginner',
           language: language?.toLowerCase() || 'en',
           teaching_style: teachingStyle?.toLowerCase() || 'friendly',
+          // Include exam prep fields for quiz generation
+          course_mode: courseMode,
+          grade_level: gradeLevel,
+          exam_topics: examTopics,
         },
         {
           headers: {
@@ -239,6 +267,151 @@ export class CourseProvider {
       // Don't throw - this is background processing, we don't want to affect the user
     }
   }
+
+  async generateExamTopics({
+    user,
+    body,
+  }: {
+    user: UserDocument;
+    body: GenerateExamTopicsDto;
+  }): Promise<IApiResponseDto> {
+    try {
+      this.logger.log(
+        `Generating exam topics for user ${user._id}: topic="${body.topic}", grade_level="${body.grade_level}"`,
+      );
+
+      const response = await this.courseService.generateExamSubtopics({
+        topic: body.topic,
+        grade_level: body.grade_level,
+        language: body.language,
+      });
+
+      this.logger.log(
+        `Generated ${response.subtopics.length} subtopics for topic "${body.topic}"`,
+      );
+
+      return {
+        message: 'Exam topics generated successfully',
+        data: response,
+      };
+    } catch (error: any) {
+      this.logger.error(
+        `Failed to generate exam topics: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  async getQuizQuestions({
+    user,
+    courseId,
+  }: {
+    user: UserDocument;
+    courseId: string;
+  }): Promise<IApiResponseDto> {
+    const course = await this.courseService.getCourse({
+      _id: courseId,
+      user: user._id,
+    });
+
+    if (!course) {
+      throw new NotFoundException('Course not found');
+    }
+
+    // Get all lesson materials for this course and extract quiz questions
+    const materials = await this.lessonMaterialService.getAllMaterialsForCourse(courseId);
+
+    const questions: any[] = [];
+    let questionIndex = 0;
+
+    for (const material of materials) {
+      if (material.quiz && material.quiz.length > 0) {
+        for (const q of material.quiz) {
+          questions.push({
+            question_id: `q_${material.module_number}_${material.lesson_number}_${questionIndex}`,
+            question: q.question,
+            type: q.type || 'multiple_choice',
+            options: q.options || [],
+            topic: material.lesson_title || `Module ${material.module_number}`,
+            difficulty: material.difficulty || 'medium',
+          });
+          questionIndex++;
+        }
+      }
+    }
+
+    return {
+      message: 'Quiz questions retrieved successfully',
+      data: {
+        course_id: courseId,
+        total_questions: questions.length,
+        questions,
+      },
+    };
+  }
+
+  async submitQuizAnswer({
+    user,
+    courseId,
+    body,
+  }: {
+    user: UserDocument;
+    courseId: string;
+    body: SubmitQuizAnswerDto;
+  }): Promise<IApiResponseDto> {
+    const course = await this.courseService.getCourse({
+      _id: courseId,
+      user: user._id,
+    });
+
+    if (!course) {
+      throw new NotFoundException('Course not found');
+    }
+
+    // Parse question ID to find the question
+    // Format: q_<module>_<lesson>_<index>
+    const [, moduleNum, lessonNum] = body.question_id.split('_');
+
+    const material = await this.lessonMaterialService.getMaterialByCourseAndLesson(
+      courseId,
+      parseInt(moduleNum),
+      lessonNum,
+    );
+
+    if (!material || !material.quiz) {
+      throw new NotFoundException('Quiz question not found');
+    }
+
+    // Find the question in the quiz array
+    const questionIndex = parseInt(body.question_id.split('_').pop() || '0');
+    const question = material.quiz[questionIndex];
+
+    if (!question) {
+      throw new NotFoundException('Quiz question not found');
+    }
+
+    // Check the answer
+    const isCorrect =
+      question.correct_answer?.toLowerCase().trim() ===
+      body.user_answer?.toLowerCase().trim();
+
+    // TODO: Track user's quiz progress in a separate collection
+
+    return {
+      message: isCorrect ? 'Correct!' : 'Incorrect',
+      data: {
+        is_correct: isCorrect,
+        correct_answer: question.correct_answer,
+        explanation: question.explanation || 'No explanation available.',
+        score: {
+          correct: isCorrect ? 1 : 0,
+          total: 1,
+        },
+      },
+    };
+  }
+
   async changeCourseAIAvatar({
     user,
     body,

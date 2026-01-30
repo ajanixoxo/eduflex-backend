@@ -6,3 +6,5 @@ export * from './lesson-nav.dto';
 export * from './update-ai.dto';
 export * from './learning-progress.dto';
 export * from './lesson-material.dto';
+export * from './generate-exam-topics.dto';
+export * from './quiz.dto';

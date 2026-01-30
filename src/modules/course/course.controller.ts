@@ -13,9 +13,11 @@ import {
   ChangeCourseAIAvatarDto,
   ChangeCourseAIVoiceDto,
   CreateCourseDto,
+  GenerateExamTopicsDto,
   LessonNavDto,
   ListCoursesDto,
   MarkLessonCompleteDto,
+  SubmitQuizAnswerDto,
   UpdateCourseDto,
 } from './dtos';
 import { type UserDocument } from '../user/schemas';
@@ -30,6 +32,31 @@ export class CourseController {
   @Post('generate-outline')
   createCourse(@Auth() user: UserDocument, @Body() body: CreateCourseDto) {
     return this.courseProvider.createCourse({ user, body });
+  }
+
+  @Post('generate-exam-topics')
+  generateExamTopics(
+    @Auth() user: UserDocument,
+    @Body() body: GenerateExamTopicsDto,
+  ) {
+    return this.courseProvider.generateExamTopics({ user, body });
+  }
+
+  @Get(':courseId/quiz-questions')
+  getQuizQuestions(
+    @Auth() user: UserDocument,
+    @Param('courseId') courseId: string,
+  ) {
+    return this.courseProvider.getQuizQuestions({ user, courseId });
+  }
+
+  @Post(':courseId/quiz-answer')
+  submitQuizAnswer(
+    @Auth() user: UserDocument,
+    @Param('courseId') courseId: string,
+    @Body() body: SubmitQuizAnswerDto,
+  ) {
+    return this.courseProvider.submitQuizAnswer({ user, courseId, body });
   }
 
   @Patch(':courseId')
