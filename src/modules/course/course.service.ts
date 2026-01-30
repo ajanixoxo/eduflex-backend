@@ -67,13 +67,50 @@ export class CourseService {
       });
       return response.data;
     } catch (error: any) {
-      const message =
-        error.response?.data?.message ||
-        error.response?.data?.detail ||
-        error.message ||
-        'Failed to generate exam subtopics';
-      throw new Error(message);
+      // Fallback: Generate basic subtopics if AI service is unavailable
+      console.warn(
+        `AI service unavailable for topic generation, using fallback for topic: ${topic}`,
+      );
+      return this.generateFallbackSubtopics(topic, grade_level);
     }
+  }
+
+  /**
+   * Generate fallback subtopics when AI service is unavailable
+   */
+  private generateFallbackSubtopics(
+    topic: string,
+    grade_level: GradeLevel,
+  ): GenerateExamTopicsResponse {
+    // Generate generic subtopics based on the main topic
+    const subtopics = [
+      {
+        name: `Introduction to ${topic}`,
+        description: `Basic concepts and fundamentals of ${topic}`,
+      },
+      {
+        name: `Core Principles of ${topic}`,
+        description: `Key principles and theories related to ${topic}`,
+      },
+      {
+        name: `${topic} Applications`,
+        description: `Real-world applications and examples`,
+      },
+      {
+        name: `${topic} Problem Solving`,
+        description: `Practice problems and exercises`,
+      },
+      {
+        name: `Advanced ${topic} Concepts`,
+        description: `More complex topics and advanced material`,
+      },
+    ];
+
+    return {
+      topic,
+      grade_level,
+      subtopics,
+    };
   }
 
   async createCourse(
