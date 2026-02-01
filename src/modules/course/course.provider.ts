@@ -182,10 +182,11 @@ export class CourseProvider {
     gradeLevel?: string,
     examTopics?: string[],
   ): Promise<void> {
+    const isExamPrep = courseMode === 'exam_prep';
+
     try {
       this.logger.log(`Starting background material generation for course ${courseId}`);
 
-      const isExamPrep = courseMode === 'exam_prep';
       if (isExamPrep) {
         this.logger.log(`Course is in exam_prep mode, grade_level: ${gradeLevel}, topics: ${examTopics?.join(', ')}`);
       }
@@ -266,7 +267,127 @@ export class CourseProvider {
         `Failed to generate materials for course ${courseId}: ${error.message}`,
         error.stack,
       );
-      // Don't throw - this is background processing, we don't want to affect the user
+
+      // Generate fallback materials when AI pod fails
+      this.logger.log(`Generating fallback materials for course ${courseId}`);
+      await this.generateFallbackMaterials(courseId, courseTitle, modules, isExamPrep, examTopics);
+    }
+  }
+
+  /**
+   * Generate fallback lesson materials when AI service is unavailable
+   */
+  private async generateFallbackMaterials(
+    courseId: string,
+    courseTitle: string,
+    modules: any[],
+    isExamPrep: boolean,
+    examTopics?: string[],
+  ): Promise<void> {
+    try {
+      for (const module of modules) {
+        for (const lesson of module.lessons || []) {
+          const lessonTitle = lesson.title || `Lesson ${lesson.lesson_number}`;
+
+          // Generate basic sections based on lesson title
+          const sections = [
+            {
+              section_number: 1,
+              title: `Introduction to ${lessonTitle}`,
+              content: `In this section, we will introduce the fundamental concepts of ${lessonTitle}. This forms the foundation for understanding the rest of the lesson.`,
+              key_points: [
+                `Understanding the basics of ${lessonTitle}`,
+                `Why ${lessonTitle} is important in ${courseTitle}`,
+                `Prerequisites for learning ${lessonTitle}`,
+              ],
+              examples: [],
+            },
+            {
+              section_number: 2,
+              title: `Core Concepts of ${lessonTitle}`,
+              content: `Here we explore the main principles and concepts that define ${lessonTitle}. These concepts are essential for practical application.`,
+              key_points: [
+                `Key principles of ${lessonTitle}`,
+                `Common patterns and practices`,
+                `How to apply these concepts effectively`,
+              ],
+              examples: [],
+            },
+            {
+              section_number: 3,
+              title: `Practical Applications`,
+              content: `This section covers how to apply what you've learned about ${lessonTitle} in real-world scenarios.`,
+              key_points: [
+                `Real-world use cases`,
+                `Best practices for implementation`,
+                `Common mistakes to avoid`,
+              ],
+              examples: [],
+            },
+          ];
+
+          // Generate quiz questions for the lesson
+          const quiz = [
+            {
+              question_id: `q1_${module.module_number}_${lesson.lesson_number}`,
+              question: `What is the main concept introduced in ${lessonTitle}?`,
+              type: 'multiple_choice',
+              options: [
+                `Understanding the fundamentals`,
+                `Memorizing formulas`,
+                `Skipping prerequisites`,
+                `Avoiding practice`,
+              ],
+              correct_answer: `Understanding the fundamentals`,
+              explanation: `The main concept is to understand the fundamentals before moving to advanced topics.`,
+              points: 1,
+            },
+            {
+              question_id: `q2_${module.module_number}_${lesson.lesson_number}`,
+              question: `Why is ${lessonTitle} important?`,
+              type: 'multiple_choice',
+              options: [
+                `It forms the foundation for advanced concepts`,
+                `It has no practical applications`,
+                `It is only theoretical`,
+                `It can be skipped`,
+              ],
+              correct_answer: `It forms the foundation for advanced concepts`,
+              explanation: `${lessonTitle} is important because it provides the foundation for understanding more advanced topics.`,
+              points: 1,
+            },
+          ];
+
+          await this.lessonMaterialService.upsertMaterial(
+            courseId,
+            module.module_number,
+            lesson.lesson_number,
+            {
+              lesson_title: lessonTitle,
+              learning_objectives: [
+                `Understand the basic concepts of ${lessonTitle}`,
+                `Apply ${lessonTitle} principles in practice`,
+                `Identify common patterns and best practices`,
+              ],
+              sections,
+              summary_points: [
+                `${lessonTitle} is a fundamental topic in ${courseTitle}`,
+                `Understanding the basics is essential before advancing`,
+                `Practice is key to mastering these concepts`,
+              ],
+              quiz,
+              estimated_duration: 15,
+              difficulty: 'medium',
+              generation_status: 'fallback',
+            },
+          );
+        }
+      }
+      this.logger.log(`Generated fallback materials for course ${courseId}`);
+    } catch (fallbackError: any) {
+      this.logger.error(
+        `Failed to generate fallback materials for course ${courseId}: ${fallbackError.message}`,
+      );
     }
   }
 
