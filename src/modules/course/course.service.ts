@@ -6,7 +6,7 @@ import { Course, CourseDocument } from './schemas';
 import axios, { AxiosInstance } from 'axios';
 import { Env } from '../shared/constants';
 import { CreateCourseDto, GenerateExamTopicsResponse, ListCoursesDto } from './dtos';
-import { GradeLevel, Language } from './enums';
+import { GradeLevel, Language, LessonType } from './enums';
 import { IGeneratedCourseContent } from './types';
 import { UserService } from '../user/user.service';
 
@@ -41,13 +41,70 @@ export class CourseService {
       );
       return response.data;
     } catch (error: any) {
-      const message =
-        error.response?.data?.message ||
-        error.response?.data?.detail ||
-        error.message ||
-        'Failed to generate course outline';
-      throw new Error(message);
+      console.warn(
+        `AI service unavailable for course outline generation, using fallback for topic: ${payload.topic}`,
+      );
+      // Return a fallback course outline when AI service is unavailable
+      return this.generateFallbackCourseOutline(payload);
     }
+  }
+
+  /**
+   * Generate fallback course outline when AI service is unavailable
+   */
+  private generateFallbackCourseOutline(
+    payload: CreateCourseDto,
+  ): IGeneratedCourseContent {
+    const topic = payload.topic;
+    const isExamPrep = payload.course_mode === 'exam_prep';
+    const examTopics = payload.exam_topics || [];
+
+    // Use exam topics if available, otherwise generate generic modules
+    const moduleTopics =
+      examTopics.length > 0
+        ? examTopics
+        : [
+            `Introduction to ${topic}`,
+            `Core Concepts of ${topic}`,
+            `${topic} in Practice`,
+            `Advanced ${topic}`,
+          ];
+
+    const modules = moduleTopics.map((moduleTopic, index) => ({
+      module_number: index + 1,
+      title: moduleTopic,
+      status: 'pending' as const,
+      lessons: [
+        {
+          lesson_number: '1',
+          title: `Understanding ${moduleTopic}`,
+          type: isExamPrep ? LessonType.PRACTICE_QUIZ : LessonType.VIDEO,
+          resources: [],
+        },
+        {
+          lesson_number: '2',
+          title: `Key Principles of ${moduleTopic}`,
+          type: isExamPrep ? LessonType.PRACTICE_QUIZ : LessonType.VIDEO,
+          resources: [],
+        },
+        {
+          lesson_number: '3',
+          title: `Applying ${moduleTopic}`,
+          type: isExamPrep ? LessonType.PRACTICE_QUIZ : LessonType.VIDEO,
+          resources: [],
+        },
+      ],
+    }));
+
+    const totalLessons = modules.reduce((sum, m) => sum + m.lessons.length, 0);
+
+    return {
+      title: isExamPrep ? `${topic} Exam Preparation` : `Learn ${topic}`,
+      estimated_duration: `${totalLessons * 15} minutes`,
+      total_lessons: totalLessons,
+      time_per_session: payload.time_dedication || '30m',
+      modules,
+    };
   }
 
   async generateExamSubtopics({
