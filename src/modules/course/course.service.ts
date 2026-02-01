@@ -6,7 +6,7 @@ import { Course, CourseDocument } from './schemas';
 import axios, { AxiosInstance } from 'axios';
 import { Env } from '../shared/constants';
 import { CreateCourseDto, GenerateExamTopicsResponse, ListCoursesDto } from './dtos';
-import { GradeLevel, Language, LessonType } from './enums';
+import { GradeLevel, Language, LessonType, ModuleStatus } from './enums';
 import { IGeneratedCourseContent } from './types';
 import { UserService } from '../user/user.service';
 
@@ -73,7 +73,7 @@ export class CourseService {
     const modules = moduleTopics.map((moduleTopic, index) => ({
       module_number: index + 1,
       title: moduleTopic,
-      status: 'pending' as const,
+      status: ModuleStatus.PENDING,
       lessons: [
         {
           lesson_number: '1',
