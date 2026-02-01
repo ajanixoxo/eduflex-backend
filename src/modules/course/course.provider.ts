@@ -204,6 +204,8 @@ export class CourseProvider {
             lessons: m.lessons.map((l: any) => ({
               lesson_number: l.lesson_number,
               title: l.title,
+              type: l.type || 'lesson',
+              resources: l.resources || [],
             })),
           })),
           experience_level: experienceLevel?.toLowerCase() || 'beginner',
