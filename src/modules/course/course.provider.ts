@@ -378,7 +378,7 @@ export class CourseProvider {
               quiz,
               estimated_duration: 15,
               difficulty: 'medium',
-              generation_status: 'fallback',
+              generation_status: 'ready',
             },
           );
         }
