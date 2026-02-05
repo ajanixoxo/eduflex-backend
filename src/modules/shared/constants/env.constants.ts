@@ -19,8 +19,8 @@ const envSchema = z.object({
   LIVEKIT_API_SECRET: z.string(),
   LIVEKIT_URL: z.string(),
   AGENT_API_KEY: z.string().optional(), // Optional API key for agent authentication
-  CHATTERBOX_URL: z.string().optional().default('https://1cba9ac5b79f-9201.proxy.runpod.net'), // Chatterbox voice cloning
-  VIDEO_GEN_URL: z.string().optional().default('https://1cba9ac5b79f-9400.proxy.runpod.net'), // Video generation service URL
+  CHATTERBOX_URL: z.string().optional().default('https://oy5c0rjrdj7p42-9201.proxy.runpod.net'), // Chatterbox voice cloning
+  VIDEO_GEN_URL: z.string().optional().default('https://oy5c0rjrdj7p42-9400.proxy.runpod.net'), // Video generation service URL
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
