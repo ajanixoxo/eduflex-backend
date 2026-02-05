@@ -502,12 +502,12 @@ export class MediaProvider {
         );
       }
 
-      // 2. Call AI Pod XTTS clone endpoint
-      const xttsUrl = Env.XTTS_URL ?? 'http://localhost:9201';
+      // 2. Call AI Pod Chatterbox clone endpoint
+      const chatterboxUrl = Env.CHATTERBOX_URL ?? 'http://localhost:9201';
       let cloneResponse: { data: { voice_id: string; status: string } };
 
       try {
-        cloneResponse = await axios.post(`${xttsUrl}/clone`, {
+        cloneResponse = await axios.post(`${chatterboxUrl}/clone`, {
           audio_url: media.url, // Cloudinary URL
           name: body.name,
         }, {
