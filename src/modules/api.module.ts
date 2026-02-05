@@ -8,6 +8,8 @@ import { CourseModule } from './course/course.module';
 import { MediaModule } from './media/media.module';
 import { ChatModule } from './chat/chat.module';
 import { AiModule } from './ai/ai.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { CalendarModule } from './calendar/calendar.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { AiModule } from './ai/ai.module';
     MediaModule,
     SystemModule,
     AiModule,
+    NotificationsModule,
+    CalendarModule,
   ],
   providers: [ApiService],
   controllers: [ApiController],

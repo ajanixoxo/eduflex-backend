@@ -84,17 +84,24 @@ export class User extends TimestampMixin {
   @Prop({ type: Date, required: false, default: Date.now })
   last_activity: Date;
 
+  @Prop({ type: String, default: 'Africa/Lagos' })
+  timezone: string;
+
   @Prop({
     type: {
       platform_notifications: { type: Boolean, default: true },
       app_notifications: { type: Boolean, default: true },
       general_notifications: { type: Boolean, default: true },
+      lesson_reminders: { type: Boolean, default: true },
+      reminder_minutes_before: { type: Number, default: 30 },
     },
   })
   notification_preferences: {
     platform_notifications: boolean;
     app_notifications: boolean;
     general_notifications: boolean;
+    lesson_reminders: boolean;
+    reminder_minutes_before: number;
   };
 
   @Prop({ type: Boolean, default: false })

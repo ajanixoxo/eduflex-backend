@@ -9,6 +9,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  Matches,
 } from 'class-validator';
 import {
   CourseStatus,
@@ -176,6 +177,41 @@ export class CreateCourseDto {
   @IsArray()
   @IsString({ each: true })
   exam_topics?: string[];
+
+  // Scheduling fields
+  @ApiPropertyOptional({
+    description: 'Scheduled start date for the course',
+    example: '2025-02-10',
+  })
+  @IsOptional()
+  @IsDateString()
+  scheduled_start_date?: string;
+
+  @ApiPropertyOptional({
+    description: 'Daily lesson time in HH:mm format (24-hour)',
+    example: '09:00',
+  })
+  @IsOptional()
+  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, {
+    message: 'daily_lesson_time must be in HH:mm format (e.g., 09:00, 14:30)',
+  })
+  daily_lesson_time?: string;
+
+  @ApiPropertyOptional({
+    description: 'Timezone for scheduling (IANA timezone)',
+    example: 'Africa/Lagos',
+  })
+  @IsOptional()
+  @IsString()
+  timezone?: string;
+
+  @ApiPropertyOptional({
+    description: 'Enable email notifications for lessons',
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  notifications_enabled?: boolean;
 }
 
 export class UpdateCourseDto extends PartialType(CreateCourseDto) {

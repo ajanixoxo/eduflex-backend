@@ -202,6 +202,22 @@ export class Course extends TimestampMixin {
 
   @Prop({ default: false })
   is_completed: boolean;
+
+  // Scheduling fields
+  @Prop({ type: Date })
+  scheduled_start_date?: Date;
+
+  @Prop({ type: String }) // Format: "HH:mm" (24-hour)
+  daily_lesson_time?: string;
+
+  @Prop({ type: String, default: 'Africa/Lagos' })
+  timezone: string;
+
+  @Prop({ type: Boolean, default: true })
+  notifications_enabled: boolean;
+
+  @Prop({ type: Date })
+  last_reminder_sent?: Date;
 }
 
 export const CourseSchema = SchemaFactory.createForClass(Course);
