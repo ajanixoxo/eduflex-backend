@@ -22,6 +22,7 @@ const envSchema = z.object({
   CHATTERBOX_URL: z.string().optional().default('https://oy5c0rjrdj7p42-9201.proxy.runpod.net'), // Chatterbox voice cloning
   VIDEO_GEN_URL: z.string().optional().default('https://oy5c0rjrdj7p42-9400.proxy.runpod.net'), // Video generation service URL
   WEB_APP_URL: z.string().optional().default('https://eduflexai.com'), // Frontend web app URL
+  API_BASE_URL: z.string().optional().default('https://eduflexbackend.funtech.dev/api-gateway/v1'), // Backend API URL
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

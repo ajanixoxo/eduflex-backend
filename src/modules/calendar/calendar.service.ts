@@ -59,8 +59,9 @@ export class CalendarService {
    * Generate subscription URL for a user
    */
   getSubscriptionUrl(token: string): string {
-    const apiUrl = Env.WEB_APP_URL?.replace('https://', '') || 'api.eduflexai.com';
-    return `webcal://${apiUrl}/api/calendar/subscribe/${token}`;
+    // Use the backend API URL for calendar subscriptions
+    const apiUrl = Env.API_BASE_URL?.replace('https://', '').replace('http://', '') || 'eduflexbackend.funtech.dev/api-gateway/v1';
+    return `webcal://${apiUrl}/calendar/subscribe/${token}`;
   }
 
   /**
