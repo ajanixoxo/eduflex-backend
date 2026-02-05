@@ -14,6 +14,7 @@ import {
   LessonStatus,
   CourseMode,
   GradeLevel,
+  ExamType,
 } from '../enums';
 import { type UserDocument } from 'src/modules/user/schemas';
 import {
@@ -192,6 +193,9 @@ export class Course extends TimestampMixin {
 
   @Prop({ enum: Object.values(GradeLevel) })
   grade_level?: GradeLevel;
+
+  @Prop({ enum: Object.values(ExamType), default: ExamType.JAMB })
+  exam_type?: ExamType;
 
   @Prop({ type: [String], default: [] })
   exam_topics: string[];

@@ -87,6 +87,15 @@ export enum GradeLevel {
   ELEMENTARY = 'elementary',
   MIDDLE_SCHOOL = 'middle_school',
   HIGH_SCHOOL = 'high_school',
+  SENIOR_SECONDARY = 'senior_secondary', // SSS 1-3 (Nigerian)
   COLLEGE = 'college',
   PROFESSIONAL = 'professional',
+}
+
+export enum ExamType {
+  JAMB = 'JAMB',        // Joint Admissions and Matriculation Board
+  WAEC = 'WAEC',        // West African Examinations Council
+  NECO = 'NECO',        // National Examinations Council
+  GCE = 'GCE',          // General Certificate of Education
+  CUSTOM = 'custom',    // Custom quiz
 }

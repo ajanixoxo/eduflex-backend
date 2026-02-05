@@ -464,10 +464,10 @@ export class CourseProvider {
       }
     }
 
-    // If no questions found and this is an exam_prep course, generate fallback questions
+    // If no questions found and this is an exam_prep course, generate AI quiz questions
     if (questions.length === 0 && (course as any).course_mode === 'exam_prep') {
-      this.logger.log(`No quiz questions found for exam_prep course ${courseId}, generating fallback questions`);
-      questions = await this.generateFallbackQuizQuestions(course);
+      this.logger.log(`No quiz questions found for exam_prep course ${courseId}, generating AI exam questions`);
+      questions = await this.generateExamQuizQuestions(course);
     }
 
     return {
@@ -481,98 +481,99 @@ export class CourseProvider {
   }
 
   /**
-   * Generate fallback quiz questions when AI service is unavailable
+   * Generate JAMB/WAEC style quiz questions using AI service
    */
-  private async generateFallbackQuizQuestions(course: CourseDocument): Promise<any[]> {
-    const questions: any[] = [];
+  private async generateExamQuizQuestions(course: CourseDocument): Promise<any[]> {
     const examTopics = (course as any).exam_topics || [];
-    const gradeLevel = (course as any).grade_level || 'high_school';
+    const gradeLevel = (course as any).grade_level || 'senior_secondary';
+    const examType = (course as any).exam_type || 'JAMB';
     const courseTopic = course.topic || 'General Knowledge';
 
-    // If no exam_topics, use the course topic
-    const topics = examTopics.length > 0 ? examTopics : [courseTopic];
+    // Determine subject from course topic (simplified)
+    const subject = this.detectSubjectFromTopic(courseTopic);
 
-    // Generate questions for each topic
-    for (let topicIdx = 0; topicIdx < topics.length; topicIdx++) {
-      const topic = topics[topicIdx];
+    const topicStr = examTopics.length > 0 ? examTopics.join(', ') : courseTopic;
 
-      // Generate 3-4 questions per topic
-      const topicQuestions = this.generateQuestionsForTopic(topic, gradeLevel, topicIdx);
-      questions.push(...topicQuestions);
+    try {
+      const aiPodUrl = Env.AI_WEB_URL || 'http://localhost:8002';
+
+      this.logger.log(`Generating ${examType} quiz questions for course ${course._id}`);
+
+      const response = await axios.post(
+        `${aiPodUrl}/courses/${course._id}/generate-quiz`,
+        {
+          course_id: course._id.toString(),
+          exam_type: examType,
+          subject: subject,
+          topic: topicStr,
+          subtopics: examTopics.length > 0 ? examTopics : null,
+          grade_level: gradeLevel,
+          num_questions: 20,
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Agent-API-Key': Env.AGENT_API_KEY || '',
+          },
+          timeout: 180000, // 3 minutes for quiz generation
+        },
+      );
+
+      const generatedQuestions = response.data?.questions || [];
+
+      this.logger.log(`Generated ${generatedQuestions.length} ${examType} questions`);
+
+      // Format questions with consistent IDs
+      return generatedQuestions.map((q: any, index: number) => ({
+        question_id: `q_ai_${course._id}_${index}`,
+        question: q.question,
+        type: q.type || 'multiple_choice',
+        options: q.options || [],
+        topic: q.topic || topicStr,
+        difficulty: q.difficulty || 'medium',
+        correct_answer: q.correct_answer,
+        explanation: q.explanation,
+        exam_type: examType,
+      }));
+    } catch (error: any) {
+      this.logger.error(`Failed to generate AI quiz questions: ${error.message}`);
+      // Return empty array - no more fallback to dummy questions
+      return [];
     }
-
-    return questions;
   }
 
   /**
-   * Generate sample questions for a given topic
+   * Detect subject from course topic for proper exam question generation
    */
-  private generateQuestionsForTopic(topic: string, gradeLevel: string, topicIndex: number): any[] {
-    const questions: any[] = [];
+  private detectSubjectFromTopic(topic: string): string {
+    const topicLower = topic.toLowerCase();
 
-    // Question templates based on topic
-    const questionTemplates = [
-      {
-        question: `What is the primary concept behind ${topic}?`,
-        options: [
-          `Understanding the fundamentals of ${topic}`,
-          `Memorizing ${topic} formulas`,
-          `Ignoring ${topic} principles`,
-          `Avoiding ${topic} applications`,
-        ],
-        correct_answer: `Understanding the fundamentals of ${topic}`,
-        explanation: `The primary concept involves understanding the fundamental principles and how they apply in various contexts.`,
-      },
-      {
-        question: `Which of the following best describes a key principle of ${topic}?`,
-        options: [
-          `It has no practical applications`,
-          `It forms the foundation for advanced concepts`,
-          `It is only theoretical`,
-          `It cannot be measured or observed`,
-        ],
-        correct_answer: `It forms the foundation for advanced concepts`,
-        explanation: `${topic} principles serve as building blocks for more advanced concepts and real-world applications.`,
-      },
-      {
-        question: `How is ${topic} commonly applied in real-world scenarios?`,
-        options: [
-          `Through practical problem-solving`,
-          `It has no real-world applications`,
-          `Only in laboratory settings`,
-          `It cannot be applied practically`,
-        ],
-        correct_answer: `Through practical problem-solving`,
-        explanation: `${topic} concepts are regularly applied in solving practical problems and making informed decisions.`,
-      },
-      {
-        question: `What is an important consideration when studying ${topic}?`,
-        options: [
-          `Understanding the underlying concepts`,
-          `Skipping the basics`,
-          `Ignoring prerequisites`,
-          `Avoiding practice problems`,
-        ],
-        correct_answer: `Understanding the underlying concepts`,
-        explanation: `A solid grasp of underlying concepts is essential for mastering ${topic} and applying it effectively.`,
-      },
-    ];
-
-    for (let i = 0; i < questionTemplates.length; i++) {
-      const template = questionTemplates[i];
-      questions.push({
-        question_id: `q_fallback_${topicIndex}_${i}`,
-        question: template.question,
-        type: 'multiple_choice',
-        options: template.options,
-        topic: topic,
-        difficulty: gradeLevel === 'elementary' ? 'easy' : gradeLevel === 'middle_school' ? 'medium' : 'hard',
-        correct_answer: template.correct_answer,
-        explanation: template.explanation,
-      });
+    if (topicLower.includes('math') || topicLower.includes('algebra') || topicLower.includes('calculus') || topicLower.includes('geometry')) {
+      return 'Mathematics';
+    }
+    if (topicLower.includes('physics') || topicLower.includes('motion') || topicLower.includes('force') || topicLower.includes('energy')) {
+      return 'Physics';
+    }
+    if (topicLower.includes('chemistry') || topicLower.includes('element') || topicLower.includes('compound') || topicLower.includes('reaction')) {
+      return 'Chemistry';
+    }
+    if (topicLower.includes('biology') || topicLower.includes('cell') || topicLower.includes('organism') || topicLower.includes('genetics')) {
+      return 'Biology';
+    }
+    if (topicLower.includes('english') || topicLower.includes('grammar') || topicLower.includes('literature') || topicLower.includes('comprehension')) {
+      return 'English Language';
+    }
+    if (topicLower.includes('history') || topicLower.includes('government') || topicLower.includes('civic')) {
+      return 'Government';
+    }
+    if (topicLower.includes('economics') || topicLower.includes('commerce') || topicLower.includes('accounting')) {
+      return 'Economics';
+    }
+    if (topicLower.includes('geography') || topicLower.includes('map') || topicLower.includes('climate')) {
+      return 'Geography';
     }
 
-    return questions;
+    return 'General Studies';
   }
 
   async submitQuizAnswer({
@@ -593,19 +594,21 @@ export class CourseProvider {
       throw new NotFoundException('Course not found');
     }
 
-    // Check if this is a fallback question (format: q_fallback_<topicIndex>_<questionIndex>)
-    if (body.question_id.startsWith('q_fallback_')) {
-      // Handle fallback questions - regenerate and find the question
-      const fallbackQuestions = await this.generateFallbackQuizQuestions(course);
-      const question = fallbackQuestions.find(q => q.question_id === body.question_id);
+    // Check if this is an AI-generated question (format: q_ai_<courseId>_<index>)
+    if (body.question_id.startsWith('q_ai_')) {
+      // Handle AI-generated exam questions - regenerate and find the question
+      const aiQuestions = await this.generateExamQuizQuestions(course);
+      const question = aiQuestions.find(q => q.question_id === body.question_id);
 
       if (!question) {
         throw new NotFoundException('Quiz question not found');
       }
 
-      const isCorrect =
-        question.correct_answer?.toLowerCase().trim() ===
-        body.user_answer?.toLowerCase().trim();
+      // Normalize answer comparison (handle both label and text)
+      const userAnswer = body.user_answer?.toUpperCase().trim();
+      const correctAnswer = question.correct_answer?.toUpperCase().trim();
+
+      const isCorrect = userAnswer === correctAnswer;
 
       return {
         message: isCorrect ? 'Correct!' : 'Incorrect',

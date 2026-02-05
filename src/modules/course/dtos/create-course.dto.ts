@@ -21,6 +21,7 @@ import {
   CourseFormatAddons,
   CourseMode,
   GradeLevel,
+  ExamType,
 } from '../enums';
 
 export class CreateCourseDto {
@@ -156,6 +157,15 @@ export class CreateCourseDto {
   @IsOptional()
   @IsEnum(GradeLevel)
   grade_level?: GradeLevel;
+
+  @ApiPropertyOptional({
+    description: 'Exam type for quiz generation (JAMB, WAEC, NECO, etc.)',
+    enum: ExamType,
+    example: 'JAMB',
+  })
+  @IsOptional()
+  @IsEnum(ExamType)
+  exam_type?: ExamType;
 
   @ApiPropertyOptional({
     description: 'Selected exam topics',
