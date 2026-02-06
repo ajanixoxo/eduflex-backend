@@ -218,6 +218,13 @@ export class Course extends TimestampMixin {
 
   @Prop({ type: Date })
   last_reminder_sent?: Date;
+
+  // Cached quiz questions for exam mode (to avoid regenerating on each answer)
+  @Prop({ type: [Object], default: [] })
+  cached_quiz_questions: any[];
+
+  @Prop({ type: Date })
+  quiz_questions_generated_at?: Date;
 }
 
 export const CourseSchema = SchemaFactory.createForClass(Course);

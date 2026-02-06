@@ -464,10 +464,31 @@ export class CourseProvider {
       }
     }
 
-    // If no questions found and this is an exam_prep course, generate AI quiz questions
+    // If no questions found and this is an exam_prep course, use cached or generate new questions
     if (questions.length === 0 && (course as any).course_mode === 'exam_prep') {
-      this.logger.log(`No quiz questions found for exam_prep course ${courseId}, generating AI exam questions`);
-      questions = await this.generateExamQuizQuestions(course);
+      // Check if we have cached questions that are less than 1 hour old
+      const cachedQuestions = (course as any).cached_quiz_questions || [];
+      const generatedAt = (course as any).quiz_questions_generated_at;
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+      if (cachedQuestions.length > 0 && generatedAt && new Date(generatedAt) > oneHourAgo) {
+        this.logger.log(`Using cached quiz questions for exam_prep course ${courseId}`);
+        questions = cachedQuestions;
+      } else {
+        this.logger.log(`Generating new AI exam questions for course ${courseId}`);
+        questions = await this.generateExamQuizQuestions(course);
+
+        // Cache the questions in the course document
+        if (questions.length > 0) {
+          await this.courseService.updateCourse(
+            { _id: courseId },
+            {
+              cached_quiz_questions: questions,
+              quiz_questions_generated_at: new Date(),
+            }
+          );
+        }
+      }
     }
 
     return {
@@ -596,12 +617,30 @@ export class CourseProvider {
 
     // Check if this is an AI-generated question (format: q_ai_<courseId>_<index>)
     if (body.question_id.startsWith('q_ai_')) {
-      // Handle AI-generated exam questions - regenerate and find the question
-      const aiQuestions = await this.generateExamQuizQuestions(course);
-      const question = aiQuestions.find(q => q.question_id === body.question_id);
+      // Use cached questions from the course document
+      const cachedQuestions = (course as any).cached_quiz_questions || [];
+      let question = cachedQuestions.find((q: any) => q.question_id === body.question_id);
+
+      // If not found in cache, try regenerating (fallback for old questions)
+      if (!question) {
+        this.logger.warn(`Question ${body.question_id} not found in cache, regenerating questions`);
+        const aiQuestions = await this.generateExamQuizQuestions(course);
+        question = aiQuestions.find((q: any) => q.question_id === body.question_id);
+
+        // Update cache with new questions
+        if (aiQuestions.length > 0) {
+          await this.courseService.updateCourse(
+            { _id: courseId },
+            {
+              cached_quiz_questions: aiQuestions,
+              quiz_questions_generated_at: new Date(),
+            }
+          );
+        }
+      }
 
       if (!question) {
-        throw new NotFoundException('Quiz question not found');
+        throw new NotFoundException('Quiz question not found. Please refresh the quiz.');
       }
 
       // Normalize answer comparison (handle both label and text)
