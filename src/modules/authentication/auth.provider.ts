@@ -47,7 +47,10 @@ export class AuthProvider {
     try {
       const { email, password, account_type } = userLoginDto;
 
-      const user = await this.userService.getUser({ email });
+      // Use case-insensitive email lookup to handle legacy users with mixed-case emails
+      const user = await this.userService.getUser({
+        email: { $regex: new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+      });
       // Security: Don't reveal if email exists - use same error message as wrong password
       if (!user) throw new UnauthorizedException('Invalid credentials');
 
