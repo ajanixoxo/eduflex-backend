@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { v4 as uuidv4 } from 'uuid';
-import * as ical from 'ical-generator';
+import ical, { ICalCalendar, ICalEventRepeatingFreq, ICalAlarmType } from 'ical-generator';
 import {
   CalendarSubscription,
   CalendarSubscriptionDocument,
@@ -75,7 +75,7 @@ export class CalendarService {
       status: { $ne: 'completed' },
     });
 
-    const calendar = ical.default({
+    const calendar = ical({
       name: 'EduFlex AI - Learning Schedule',
       description: 'Your personalized learning schedule from EduFlex AI',
       timezone: 'Africa/Lagos',
@@ -84,6 +84,17 @@ export class CalendarService {
 
     for (const course of courses) {
       this.addCourseEvents(calendar, course);
+    }
+
+    // If no courses with schedules, add a placeholder event
+    if (courses.length === 0) {
+      const now = new Date();
+      calendar.createEvent({
+        start: now,
+        end: new Date(now.getTime() + 30 * 60 * 1000),
+        summary: '📚 Set up your EduFlex schedule!',
+        description: 'Visit EduFlex AI to create a course with a learning schedule. Your events will appear here automatically!',
+      });
     }
 
     return calendar.toString();
@@ -102,7 +113,7 @@ export class CalendarService {
       throw new Error('Course not found');
     }
 
-    const calendar = ical.default({
+    const calendar = ical({
       name: `EduFlex AI - ${course.title}`,
       description: `Learning schedule for ${course.title}`,
       timezone: course.timezone || 'Africa/Lagos',
@@ -117,7 +128,7 @@ export class CalendarService {
   /**
    * Add course events to calendar
    */
-  private addCourseEvents(calendar: ical.ICalCalendar, course: CourseDocument): void {
+  private addCourseEvents(calendar: ICalCalendar, course: CourseDocument): void {
     if (!course.scheduled_start_date || !course.daily_lesson_time) {
       return;
     }
@@ -164,17 +175,17 @@ export class CalendarService {
       location: courseUrl,
       url: courseUrl,
       repeating: {
-        freq: ical.ICalEventRepeatingFreq.DAILY,
+        freq: ICalEventRepeatingFreq.DAILY,
         until: endDate,
       },
       alarms: [
         {
-          type: ical.ICalAlarmType.display,
+          type: ICalAlarmType.display,
           trigger: 30 * 60, // 30 minutes before (in seconds)
           description: `Your lesson in "${course.title}" starts in 30 minutes!`,
         },
         {
-          type: ical.ICalAlarmType.display,
+          type: ICalAlarmType.display,
           trigger: 0, // At event time
           description: `It's time for your lesson in "${course.title}"!`,
         },
