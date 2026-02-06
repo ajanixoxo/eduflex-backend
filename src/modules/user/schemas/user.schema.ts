@@ -95,6 +95,13 @@ export class User extends TimestampMixin {
       lesson_reminders: { type: Boolean, default: true },
       reminder_minutes_before: { type: Number, default: 30 },
     },
+    default: () => ({
+      platform_notifications: true,
+      app_notifications: true,
+      general_notifications: true,
+      lesson_reminders: true,
+      reminder_minutes_before: 30,
+    }),
   })
   notification_preferences: {
     platform_notifications: boolean;

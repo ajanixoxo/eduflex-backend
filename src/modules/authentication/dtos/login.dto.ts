@@ -4,11 +4,8 @@ import {
   IsEmail,
   IsEnum,
   IsString,
-  MaxLength,
-  MinLength,
   IsNotEmpty,
 } from 'class-validator';
-import { PWD_LENGTH } from '../enums';
 import { UserTypes } from 'src/modules/user/enums';
 
 export class UserLoginDto {
@@ -18,15 +15,14 @@ export class UserLoginDto {
   @Transform(({ value }) => value?.trim().toLowerCase())
   email: string;
 
+  // Note: Password length validation removed intentionally for login
+  // Password policies should only be enforced during signup/password change
+  // Existing users with legacy passwords (outside current policy) must still be able to log in
   @ApiProperty({
     description: 'User password',
-    minLength: Number(PWD_LENGTH.MIN),
-    maxLength: Number(PWD_LENGTH.MAX),
   })
   @IsString()
   @IsNotEmpty()
-  @MinLength(Number(PWD_LENGTH.MIN))
-  @MaxLength(Number(PWD_LENGTH.MAX))
   password: string;
 
   @ApiProperty({ enum: UserTypes, default: UserTypes.CUSTOMER })
