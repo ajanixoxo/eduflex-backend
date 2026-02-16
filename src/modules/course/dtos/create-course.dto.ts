@@ -106,7 +106,12 @@ export class CreateCourseDto {
     description: 'Additional course format options',
     enum: CourseFormatAddons,
     isArray: true,
-    example: ['videos', 'practice quizzes'],
+    example: ['videos', 'realtime tutor', 'practice quizzes'],
+    default: [
+      CourseFormatAddons.VIDEOS,
+      CourseFormatAddons.REALTIME_TUTOR,
+      CourseFormatAddons.PRACTICE_QUIZZES,
+    ],
   })
   @IsOptional()
   @IsArray()

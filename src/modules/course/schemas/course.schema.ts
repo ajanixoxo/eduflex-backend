@@ -142,7 +142,11 @@ export class Course extends TimestampMixin {
   @Prop({
     type: [String],
     enum: Object.values(CourseFormatAddons),
-    default: [],
+    default: [
+      CourseFormatAddons.VIDEOS,
+      CourseFormatAddons.REALTIME_TUTOR,
+      CourseFormatAddons.PRACTICE_QUIZZES,
+    ],
   })
   course_format_addons: CourseFormatAddons[];
 
