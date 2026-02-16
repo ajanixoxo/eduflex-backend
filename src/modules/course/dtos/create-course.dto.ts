@@ -80,7 +80,7 @@ export class CreateCourseDto {
     default: LearningPreference.MIXED,
     example: 'mixed',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsEnum(LearningPreference)
   learning_preference: LearningPreference;
 
@@ -90,7 +90,7 @@ export class CreateCourseDto {
     default: TimeDedication.M30,
     example: '30m',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsEnum(TimeDedication)
   time_dedication: TimeDedication;
 
@@ -98,7 +98,7 @@ export class CreateCourseDto {
     description: 'Target completion date',
     example: '2025-12-31',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsDateString()
   target_completion: string;
 
