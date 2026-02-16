@@ -20,6 +20,7 @@ import {
   ListUsersDto,
   UpdateUserAvatarDto,
   UpdateUsernameDto,
+  UpdateProfileDto,
 } from './dtos';
 import { ValidateMongoIdPipe } from 'src/validations';
 
@@ -73,6 +74,15 @@ export class UserController {
       user,
       updateProfilePicDto,
     );
+    return data;
+  }
+
+  @Put('me/update_profile')
+  async updateProfile(
+    @Auth() user: UserDocument,
+    @Body() updateProfileDto: UpdateProfileDto,
+  ) {
+    const data = await this.userProvider.updateProfile(user, updateProfileDto);
     return data;
   }
   @Get('username/check')

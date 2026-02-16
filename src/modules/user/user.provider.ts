@@ -266,4 +266,23 @@ export class UserProvider {
       message: 'Profile Pic Updated!',
     };
   }
+
+  async updateProfile(
+    user: UserDocument,
+    updateProfileDto: any,
+  ): Promise<IApiResponseDto> {
+    await this.userService.updateUser(
+      { _id: user._id },
+      { ...updateProfileDto },
+    );
+
+    const updatedUser = await this.userService.getUser({ _id: user._id });
+
+    return {
+      message: 'Profile Updated Successfully',
+      data: {
+        user: updatedUser,
+      },
+    };
+  }
 }

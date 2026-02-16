@@ -38,6 +38,8 @@ export class User extends TimestampMixin {
   })
   status: UserStatus;
 
+
+
   @Prop({
     type: {
       name: { type: String, required: true, trim: true },
@@ -80,6 +82,13 @@ export class User extends TimestampMixin {
     default: UserPlans.FREE,
   })
   sub_package: UserPlans;
+
+  @Prop({
+    type: String,
+    enum: ['beginner', 'intermediate', 'advanced'],
+    default: 'beginner',
+  })
+  experience_level: string;
 
   @Prop({ type: Date, required: false, default: Date.now })
   last_activity: Date;
