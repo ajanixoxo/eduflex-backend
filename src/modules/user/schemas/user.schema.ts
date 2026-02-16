@@ -90,6 +90,12 @@ export class User extends TimestampMixin {
   })
   experience_level: string;
 
+  @Prop({ type: String, default: 'en' })
+  language: string;
+
+  @Prop({ type: String, default: 'casual' })
+  teaching_style: string;
+
   @Prop({ type: Date, required: false, default: Date.now })
   last_activity: Date;
 

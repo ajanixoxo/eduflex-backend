@@ -10,4 +10,18 @@ export class UpdateProfileDto {
   @IsString()
   @IsEnum(['beginner', 'intermediate', 'advanced'])
   experience_level?: string;
+
+  @ApiPropertyOptional({
+    description: 'Preferred language',
+  })
+  @IsOptional()
+  @IsString()
+  language?: string;
+
+  @ApiPropertyOptional({
+    description: 'Preferred teaching style',
+  })
+  @IsOptional()
+  @IsString()
+  teaching_style?: string;
 }
